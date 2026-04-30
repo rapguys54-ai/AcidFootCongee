@@ -6,6 +6,11 @@ import sys
 import datetime
 import logging
 
+try:
+    import keyboard
+except ImportError:
+    keyboard = None
+
 # 配置日志框架替代 print()
 logger = logging.getLogger("AcidFootCongee")
 
@@ -35,6 +40,17 @@ class BackendAPI:
             "last_price": None,
             "logs": []
         }
+        
+        # 注册全局热键
+        if keyboard:
+            try:
+                keyboard.add_hotkey('f9', self._hotkey_stop)
+                keyboard.add_hotkey('f8', self._hotkey_grab_coord)
+            except Exception as e:
+                logger.warning(f"无法注册全局热键: {e}")
+                
+        # 启动后台守护线程，用于精准的定时启动
+        threading.Thread(target=self._auto_start_daemon, daemon=True).start()
 
     def set_window(self, window):
         """保存webview窗口实例"""
@@ -83,6 +99,88 @@ class BackendAPI:
         with self._lock:
             self.status["is_running"] = False
         return {"code": 200, "message": "停止成功"}
+
+    # ==========================
+    # 后端热键与守护线程
+    # ==========================
+    
+    def _hotkey_stop(self):
+        """全局热键 F9 回调：紧急停止"""
+        if not self._stop_event.is_set():
+            self.stop_bot()
+            self._push_status_to_frontend()
+            self.push_log("INFO", "[系统热键] 已通过 F9 紧急停止自动化。")
+            
+    def _hotkey_grab_coord(self):
+        """全局热键 F8 回调：抓取鼠标在游戏内的相对坐标"""
+        try:
+            import pyautogui
+            from bot_core.automation import AutoInteraction
+            from bot_core.config_manager import ConfigManager
+            
+            auto = AutoInteraction()
+            window_info = auto.get_coordinates()
+            if not window_info:
+                self.push_log("ERROR", "未找到游戏窗口！请确保游戏处于前台，再按 F8。")
+                return
+                
+            abs_x, abs_y = pyautogui.position()
+            
+            # 换算为相对游戏窗口内部的百分比坐标
+            rel_x = (abs_x - window_info['offset_x']) / window_info['width']
+            rel_y = (abs_y - window_info['offset_y']) / window_info['height']
+            
+            if 0 <= rel_x <= 1 and 0 <= rel_y <= 1:
+                rel_x = round(rel_x, 3)
+                rel_y = round(rel_y, 3)
+                
+                # 写入 keys.json（默认更新第一项）
+                cm = ConfigManager(self.config_path)
+                updated = cm.update_position("door_card_1", [rel_x, rel_y])
+                if updated:
+                    self.push_log("SUCCESS", f"[F8 抓取] 坐标已更新为: [{rel_x}, {rel_y}]。")
+                else:
+                    self.push_log("WARNING", "[F8 抓取] 更新失败：配置文件中未找到 door_card_1 项。")
+            else:
+                self.push_log("WARNING", f"[F8 抓取] 鼠标不在游戏窗口内，当前坐标({abs_x}, {abs_y})无效。")
+        except Exception as e:
+            self.push_log("ERROR", f"抓取坐标时发生异常: {e}")
+
+    def _auto_start_daemon(self):
+        """后台守护线程：精准触发定时启动"""
+        last_checked = ""
+        from bot_core.config_manager import ConfigManager
+        
+        while True:
+            time.sleep(1)
+            # 如果正在运行则不检测
+            if not self._stop_event.is_set():
+                continue
+                
+            try:
+                cm = ConfigManager(self.config_path)
+                cm.load()
+                scheduled_time = cm.config.get('scheduledTime', '')
+                if not scheduled_time:
+                    continue
+                    
+                now = datetime.datetime.now()
+                current_time_str = f"{now.hour:02d}:{now.minute:02d}"
+                
+                if current_time_str == scheduled_time and current_time_str != last_checked:
+                    last_checked = current_time_str
+                    self.push_log("WARNING", f"定时时间 {current_time_str} 到达，后台底层触发自动启动！")
+                    
+                    self._stop_event.clear()
+                    with self._lock:
+                        self.status["is_running"] = True
+                        
+                    self._bot_thread = threading.Thread(target=self._bot_loop, daemon=True)
+                    self._bot_thread.start()
+                    self._push_status_to_frontend()
+            except Exception as e:
+                # 忽略加载配置文件时的临时异常
+                pass
 
     def get_config(self):
         """加载配置文件"""

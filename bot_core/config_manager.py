@@ -58,6 +58,24 @@ class ConfigManager:
             else:
                 self.delays[key] = 0.01
 
+    def update_position(self, key_name, new_position):
+        """更新特定键的相对坐标并保存到文件"""
+        if not self.config or 'keys' not in self.config:
+            self.load()
+            
+        updated = False
+        for item in self.config['keys']:
+            if item.get('key_name') == key_name:
+                item['position'] = new_position
+                updated = True
+                break
+                
+        if updated:
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, indent=4, ensure_ascii=False)
+            return True
+        return False
+
     def save(self, new_config):
         """保存配置到文件（带完整性校验）"""
         # 校验必要字段

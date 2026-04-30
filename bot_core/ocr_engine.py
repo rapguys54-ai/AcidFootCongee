@@ -96,7 +96,7 @@ class OcrEngine:
                     cleaned = text.replace(",", "").replace(" ", "").replace("\n", "").strip()
                     if cleaned and cleaned.isdigit():
                         price = int(cleaned)
-                        if 10000 <= price <= 100000000:
+                        if 1 <= price <= 100000000:
                             return {"price": price, "preview": preview_b64}
                 except Exception as e:
                     logger.debug(f"OCR 识别尝试失败: {e}")
