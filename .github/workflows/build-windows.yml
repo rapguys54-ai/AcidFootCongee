@@ -1,0 +1,46 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ "feature/backend-core", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Backend Repository
+      uses: actions/checkout@v4
+      with:
+        path: backend
+
+    - name: Checkout Frontend Repository
+      uses: actions/checkout@v4
+      with:
+        ref: feature/web-ui
+        path: AcidFootCongee-frontend
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      working-directory: backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller>=6.0
+
+    - name: Build with PyInstaller
+      working-directory: backend
+      run: |
+        python build.py
+
+    - name: Upload EXE Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: DeltaForceAutoBuy-Windows
+        path: backend/dist/DeltaForceAutoBuy.zip

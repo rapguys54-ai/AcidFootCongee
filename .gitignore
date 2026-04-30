@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+*.spec
+screenshots/
+.DS_Store
+*.log
+.env
+# 打包构建临时文件
+web/
+Tesseract/

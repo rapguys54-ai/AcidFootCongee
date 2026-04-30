@@ -1,0 +1,47 @@
+{
+    "keys": [
+        {
+            "max_price": 50000,
+            "position": [
+                0.3517,
+                0.2678
+            ],
+            "detail_price_region": {
+                "top_left": [
+                    0.7795,
+                    0.8211
+                ],
+                "bottom_right": [
+                    0.8862,
+                    0.882
+                ]
+            },
+            "buyAmount": 3,
+            "scheduledTime": "20:58",
+            "runDuration": 0.2
+        }
+    ],
+    "delays": {
+        "window_focus": {
+            "value": 0
+        },
+        "mouse_move": {
+            "value": 0
+        },
+        "mouse_down": {
+            "value": 0
+        },
+        "buy_button": {
+            "value": 0
+        },
+        "buy_complete": {
+            "value": 0
+        },
+        "esc_key": {
+            "value": 0
+        },
+        "loop_interval": {
+            "value": 0
+        }
+    }
+}
