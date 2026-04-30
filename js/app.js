@@ -642,7 +642,8 @@
         }
     }
 
-    if (data.last_price !== null && data.last_price !== state.last_price) {
+    // 无论价格是否变动，只要识别到有效价格就记录统计
+    if (data.last_price !== null) {
         state.last_price = data.last_price;
         state.prices.push(data.last_price);
         dom.currentPrice.textContent = data.last_price.toLocaleString();
@@ -724,13 +725,13 @@
 
     if (window.bridge) {
       gameWindowDot.classList.add('bottom-bar__dot--active');
-      gameWindowStatus.textContent = '游戏窗口: 已连接后端';
+      gameWindowStatus.textContent = '游戏窗口: 已连接';
       if (ocrStatusEl) ocrStatusEl.textContent = 'Tesseract OCR: 就绪';
-      if (configStatusEl) configStatusEl.textContent = '配置: keys.json (已加载)';
+      if (configStatusEl) configStatusEl.textContent = '系统默认配置: 已加载';
     } else {
-      gameWindowStatus.textContent = '游戏窗口: 未连接后端';
+      gameWindowStatus.textContent = '游戏窗口: 未连接';
       if (ocrStatusEl) ocrStatusEl.textContent = 'Tesseract OCR: 离线';
-      if (configStatusEl) configStatusEl.textContent = '配置: 前端演示模式';
+      if (configStatusEl) configStatusEl.textContent = '系统默认配置: 前端演示模式';
     }
 
     addLog('info', '控制面板已就绪');
