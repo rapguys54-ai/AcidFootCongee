@@ -133,18 +133,6 @@ a = Analysis(
         'tkinter',
         '_tkinter',
         'unittest',
-        'email',
-        'html',
-        'http',
-        'xml',
-        'pydoc',
-        'doctest',
-        'argparse',
-        'difflib',
-        'inspect',
-        'pdb',
-        'profile',
-        'pstats',
         'matplotlib',
         'scipy',
         'pandas',
@@ -177,7 +165,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # icon='app.ico',  # 取消注释并替换为实际图标路径
+    uac_admin=True,      # 生产级：强制请求管理员权限，确保能穿透游戏窗口拦截
+    # icon='app.ico',    # 取消注释并替换为实际图标路径
 )
 
 coll = COLLECT(

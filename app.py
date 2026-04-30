@@ -4,6 +4,18 @@ import sys
 import logging
 from api import BackendAPI
 
+# Windows 高 DPI 适配（生产级必备）
+if sys.platform == 'win32':
+    try:
+        import ctypes
+        # 设置进程 DPI 感知，防止在 125% 或 150% 缩放的屏幕上坐标偏移
+        ctypes.windll.shcore.SetProcessDpiAwareness(1) # PROCESS_SYSTEM_DPI_AWARE
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
 # 配置日志框架
 logging.basicConfig(
     level=logging.INFO,
