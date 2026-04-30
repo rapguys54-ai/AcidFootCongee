@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delta Force AutoBuy — 作战控制台</title>
+    <!-- 使用系统字体栈，无需 CDN（CSS 中已有 fallback） -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- 顶部状态栏 -->
+    <header class="top-bar">
+        <div class="top-bar__left">
+            <div class="logo">
+                <span class="logo__icon">&#x25C6;</span>
+                <span class="logo__text">DELTA FORCE</span>
+                <span class="logo__sub">AUTOBUY v2.3</span>
+            </div>
+        </div>
+        <div class="top-bar__center">
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot"></span>
+                <span class="status-text">待命中</span>
+            </div>
+        </div>
+        <div class="top-bar__right">
+            <span class="system-time" id="systemTime">--:--:--</span>
+            <button class="btn btn--icon" id="btnSettings" title="设置">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <main class="dashboard">
+        <!-- 左列：控制面板 -->
+        <section class="panel panel--control">
+            <div class="panel__header">
+                <h2 class="panel__title">作战控制</h2>
+            </div>
+            <div class="panel__body">
+                <!-- 主控制按钮 -->
+                <div class="control-buttons">
+                    <button class="btn btn--start" id="btnStart">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        开始监控
+                    </button>
+                    <button class="btn btn--stop" id="btnStop" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                        停止
+                    </button>
+                    <button class="btn btn--danger" id="btnEmergency">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        紧急退出
+                    </button>
+                </div>
+
+                <!-- 快捷键提示 -->
+                <div class="hotkey-hints">
+                    <div class="hotkey"><kbd>F8</kbd> 开始</div>
+                    <div class="hotkey"><kbd>F9</kbd> 停止</div>
+                    <div class="hotkey"><kbd>Ctrl+Shift+Q</kbd> 退出</div>
+                </div>
+
+                <!-- 配置区域 -->
+                <div class="config-section">
+                    <h3 class="config-section__title">购买参数</h3>
+                    <div class="config-field">
+                        <label class="config-field__label">最高价格</label>
+                        <div class="config-field__input-wrap">
+                            <span class="config-field__prefix">&#x00A5;</span>
+                            <input type="text" class="config-field__input" id="inputMaxPrice" value="50,000" />
+                        </div>
+                    </div>
+                    <div class="config-field">
+                        <label class="config-field__label">购买数量</label>
+                        <div class="config-field__input-wrap">
+                            <input type="number" class="config-field__input" id="inputBuyAmount" value="3" min="1" max="99" />
+                        </div>
+                    </div>
+                    <div class="config-field">
+                        <label class="config-field__label">定时启动</label>
+                        <div class="config-field__input-wrap">
+                            <input type="time" class="config-field__input" id="inputScheduledTime" value="17:49" />
+                        </div>
+                    </div>
+                    <div class="config-field">
+                        <label class="config-field__label">运行时长</label>
+                        <div class="config-field__input-wrap">
+                            <input type="number" class="config-field__input" id="inputRunDuration" value="10" min="0.1" step="0.1" />
+                            <span class="config-field__suffix">分钟</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 高级延迟设置（完全展开） -->
+                <div class="config-section">
+                    <h3 class="config-section__title">高级延迟设置</h3>
+                    <div class="delay-grid">
+                        <div class="delay-item">
+                            <label>窗口前置</label>
+                            <input type="number" step="0.01" value="0" min="0" class="delay-input" id="delayWindowFocus" />
+                            <span class="delay-unit">s</span>
+                        </div>
+                        <div class="delay-item">
+                            <label>鼠标移动</label>
+                            <input type="number" step="0.01" value="0" min="0" class="delay-input" id="delayMouseMove" />
+                            <span class="delay-unit">s</span>
+                        </div>
+                        <div class="delay-item">
+                            <label>鼠标按下</label>
+                            <input type="number" step="0.01" value="0" min="0" class="delay-input" id="delayMouseDown" />
+                            <span class="delay-unit">s</span>
+                        </div>
+                        <div class="delay-item">
+                            <label>购买按钮</label>
+                            <input type="number" step="0.01" value="0" min="0" class="delay-input" id="delayBuyButton" />
+                            <span class="delay-unit">s</span>
+                        </div>
+                        <div class="delay-item">
+                            <label>购买完成</label>
+                            <input type="number" step="0.01" value="0" min="0" class="delay-input" id="delayBuyComplete" />
+                            <span class="delay-unit">s</span>
+                        </div>
+                        <div class="delay-item">
+                            <label>ESC 延迟</label>
+                            <input type="number" step="0.01" value="0" min="0" class="delay-input" id="delayEscKey" />
+                            <span class="delay-unit">s</span>
+                        </div>
+                        <div class="delay-item">
+                            <label>循环间隔</label>
+                            <input type="number" step="0.01" value="0" min="0" class="delay-input" id="delayLoopInterval" />
+                            <span class="delay-unit">s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 固定的底部操作栏 -->
+            <div class="panel__footer">
+                <button class="btn btn--save" id="btnSaveConfig" style="width: 100%;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    保存所有配置
+                </button>
+            </div>
+        </section>
+
+        <!-- 中列：监控仪表盘 -->
+        <section class="panel panel--monitor">
+            <div class="panel__header">
+                <h2 class="panel__title">实时监控</h2>
+                <div class="panel__badge" id="monitorBadge">STANDBY</div>
+            </div>
+            <div class="panel__body">
+                <!-- 核心数据卡片 -->
+                <div class="metric-grid">
+                    <div class="metric-card metric-card--primary">
+                        <div class="metric-card__label">当前价格</div>
+                        <div class="metric-card__value" id="currentPrice">--</div>
+                        <div class="metric-card__trend" id="priceTrend"></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-card__label">最高价格设定</div>
+                        <div class="metric-card__value" id="maxPriceDisplay">50,000</div>
+                    </div>
+                    <div class="metric-card metric-card--success">
+                        <div class="metric-card__label">已购买</div>
+                        <div class="metric-card__value" id="boughtCount">0</div>
+                        <div class="metric-card__sub">/ <span id="totalTarget">3</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-card__label">运行时间</div>
+                        <div class="metric-card__value mono" id="elapsedTime">00:00</div>
+                    </div>
+                </div>
+
+                <!-- OCR 预览区域 -->
+                <div class="ocr-preview">
+                    <div class="ocr-preview__header">
+                        <span>OCR 识别预览</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggleDebug" />
+                            <span class="toggle-switch__slider"></span>
+                            <span class="toggle-switch__label">调试模式</span>
+                        </label>
+                    </div>
+                    <div class="ocr-preview__canvas" id="ocrCanvas">
+                        <div class="ocr-preview__placeholder">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            <span>等待截图...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 价格走势图 -->
+                <div class="chart-container">
+                    <div class="chart-container__header">
+                        <span>价格走势</span>
+                    </div>
+                    <div class="chart-container__body">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右列：日志 -->
+        <section class="panel panel--logs">
+            <div class="panel__header">
+                <h2 class="panel__title">活动日志</h2>
+                <button class="btn btn--ghost btn--sm" id="btnClearLogs">清除</button>
+            </div>
+            <div class="panel__body">
+                <div class="log-stream" id="logStream">
+                    <!-- 日志由 JS 动态生成，不再硬编码模拟数据 -->
+                </div>
+
+                <!-- 价格统计面板 -->
+                <div class="stats-panel" id="statsPanel">
+                    <h3 class="stats-panel__title">价格统计</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-item__label">平均价格</span>
+                            <span class="stat-item__value mono" id="avgPrice">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-item__label">最高价格</span>
+                            <span class="stat-item__value mono" id="highPrice">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-item__label">最低价格</span>
+                            <span class="stat-item__value mono" id="lowPrice">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-item__label">检测次数</span>
+                            <span class="stat-item__value mono" id="checkCount">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 游戏窗口状态条 -->
+    <footer class="bottom-bar">
+        <div class="bottom-bar__item">
+            <span class="bottom-bar__dot" id="gameWindowDot"></span>
+            <span id="gameWindowStatus">游戏窗口: 检测中...</span>
+        </div>
+        <div class="bottom-bar__item">
+            <span id="ocrStatus">Tesseract OCR: 检测中...</span>
+        </div>
+        <div class="bottom-bar__item">
+            <span id="configStatus">配置: keys.json</span>
+        </div>
+    </footer>
+
+    <script src="js/bridge.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
