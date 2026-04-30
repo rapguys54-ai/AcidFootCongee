@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     env:
       PYTHONUTF8: 1
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -47,3 +49,15 @@ jobs:
       with:
         name: DeltaForceAutoBuy-Windows
         path: backend/dist/DeltaForceAutoBuy.zip
+        
+    - name: Release to Nightly
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: nightly
+        name: "🚀 最新开发版 (Nightly Build)"
+        body: "由 GitHub Actions 自动触发构建的最新测试版。\n\n**国内高速下载链接（自带加速）：**\nhttps://ghproxy.net/https://github.com/${{ github.repository }}/releases/download/nightly/DeltaForceAutoBuy.zip"
+        files: backend/dist/DeltaForceAutoBuy.zip
+        prerelease: true
+        make_latest: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

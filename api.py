@@ -115,10 +115,10 @@ class BackendAPI:
         """全局热键 F8 回调：抓取鼠标在游戏内的相对坐标"""
         try:
             import pyautogui
-            from bot_core.automation import AutoInteraction
+            from bot_core.automation import GameAutomation
             from bot_core.config_manager import ConfigManager
             
-            auto = AutoInteraction()
+            auto = GameAutomation()
             window_info = auto.get_coordinates()
             if not window_info:
                 self.push_log("ERROR", "未找到游戏窗口！请确保游戏处于前台，再按 F8。")
@@ -335,7 +335,9 @@ class BackendAPI:
                             
                     if current_price is None:
                         pyautogui.press('esc')
-                        self.push_log("WARNING", "未能在当前界面识别到有效的门卡价格")
+                        self.push_log("WARNING", "⚠️ 目标区视野受阻或未发现有效目标，执行战术规避(ESC)并重新搜寻...")
+                        import random
+                        time.sleep(random.uniform(0.15, 0.45))  # 拟人化：按完 ESC 后观察一下
                         if self._stop_event.wait(timeout=delays.get('esc_key', 0.01)):
                             break
                         continue
@@ -343,7 +345,7 @@ class BackendAPI:
                     # 线程安全地更新状态
                     with self._lock:
                         self.status["last_price"] = current_price
-                    self.push_log("INFO", f"当前识别价格: {current_price:,}")
+                    self.push_log("INFO", f"🎯 [雷达确认] 锁定目标价格: {current_price:,} 金币")
                     
                     # 每次识别到价格都推送 bot-status 事件（不只是购买时）
                     self._push_status_to_frontend()
@@ -352,29 +354,45 @@ class BackendAPI:
                     max_price = int(card_info.get('max_price', 0))
                     
                     if max_price > 0 and current_price <= max_price:
-                        self.push_log("SUCCESS", f"价格({current_price:,}) <= 预算({max_price:,})，执行购买！")
+                        self.push_log("SUCCESS", f"⚡ [致命一击] 价格({current_price:,}) <= 预算({max_price:,})，条件满足，立刻执行战术购买！")
                         
                         # 执行购买逻辑
                         auto.click_relative(0.825, 0.90, delays)  # 点击购买按钮
+                        import random
+                        time.sleep(random.uniform(0.1, 0.3)) # 拟人化停顿
                         if self._stop_event.wait(timeout=delays.get('buy_button', 0.01)):
                             break
                         
                         auto.click_relative(0.55, 0.65, delays)  # 点击确认按钮
+                        time.sleep(random.uniform(0.3, 0.8)) # 拟人化：确认弹窗也需要反应时间
                         if self._stop_event.wait(timeout=delays.get('buy_complete', 0.01)):
                             break
                         
                         with self._lock:
                             self.status["total_purchases"] += 1
+                            current_purchases = self.status["total_purchases"]
                         
+                        target_amount = int(card_info.get('buyAmount', 1))
+                        self.push_log("SUCCESS", f"✅ [收网] 成功捕获目标！当前进度: {current_purchases} / {target_amount}")
                         self._push_status_to_frontend()
+                        
+                        if current_purchases >= target_amount:
+                            self.push_log("INFO", "🏆 [任务完成] 购买配额已满，本轮潜伏作战圆满结束。撤退！")
+                            self.stop_bot()
+                            break
+                            
                     else:
-                        self.push_log("INFO", f"价格 {current_price:,} 超过预算 {max_price:,}，取消购买")
+                        self.push_log("INFO", f"☕ [静默潜伏] 价格 {current_price:,} 超过预算 {max_price:,}，放弃攻击。")
                         pyautogui.press('esc')
+                        import random
+                        time.sleep(random.uniform(0.15, 0.45)) # 拟人化：按 ESC 也需要时间
                         if self._stop_event.wait(timeout=delays.get('esc_key', 0.01)):
                             break
 
-                # 每一轮完整循环后延迟（使用 Event.wait 支持即时停止）
-                if self._stop_event.wait(timeout=delays.get('loop_interval', 0.01)):
+                # 每一轮完整循环后延迟（拟人化：模拟人类呼吸节奏的随机间隔）
+                import random
+                sleep_time = random.uniform(0.2, 0.8)
+                if self._stop_event.wait(timeout=sleep_time):
                     break
                 
         except FileNotFoundError as e:

@@ -109,20 +109,31 @@ class GameAutomation:
         }
 
     def click_relative(self, rel_x, rel_y, delays):
-        """在游戏窗口相对坐标点击（复用缓存的窗口，避免重复搜索）"""
+        """在游戏窗口相对坐标点击（加入拟人化特征，避免防封）"""
+        import random
+        
         coords = self.get_coordinates()
-        abs_x = coords['offset_x'] + int(coords['width'] * rel_x)
-        abs_y = coords['offset_y'] + int(coords['height'] * rel_y)
+        base_abs_x = coords['offset_x'] + int(coords['width'] * rel_x)
+        base_abs_y = coords['offset_y'] + int(coords['height'] * rel_y)
+        
+        # 拟人化：加入像素级随机抖动（防止每次点击同一个绝对像素点）
+        abs_x = base_abs_x + random.randint(-4, 4)
+        abs_y = base_abs_y + random.randint(-4, 4)
         
         try:
             if self.game_window and sys.platform == 'win32':
                 win32gui.SetForegroundWindow(self.game_window['hwnd'])
-                time.sleep(delays.get("window_focus", 0.01))
+                time.sleep(delays.get("window_focus", 0.05))
         except Exception as e:
             logger.debug(f"前置窗口失败: {e}")
             
-        pyautogui.moveTo(abs_x, abs_y)
-        time.sleep(delays.get("mouse_move", 0.01))
+        # 拟人化：使用带有缓动动画（先快后慢）的鼠标移动，而不是瞬间闪烁
+        # 持续时间在 0.1 到 0.25 秒之间随机
+        move_duration = random.uniform(0.1, 0.25)
+        pyautogui.moveTo(abs_x, abs_y, duration=move_duration, tween=pyautogui.easeOutQuad)
+        
+        # 拟人化：到达目标后稍微停顿一下再按下去
+        time.sleep(random.uniform(0.02, 0.08))
         pyautogui.click(abs_x, abs_y)
         
         # 尝试发送底层点击事件以防游戏拦截
@@ -133,7 +144,8 @@ class GameAutomation:
                 client_y = abs_y - coords['offset_y']
                 lparam = (client_y << 16) | (client_x & 0xFFFF)
                 win32gui.SendMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lparam)
-                time.sleep(delays.get("mouse_down", 0.01))
+                # 拟人化：按下鼠标到松开之间，有一个真实的点击时长
+                time.sleep(random.uniform(0.03, 0.09))
                 win32gui.SendMessage(hwnd, win32con.WM_LBUTTONUP, 0, lparam)
         except Exception as e:
             logger.debug(f"底层点击事件发送失败: {e}")

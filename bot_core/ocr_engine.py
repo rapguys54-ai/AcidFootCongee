@@ -89,13 +89,17 @@ class OcrEngine:
         
         images = [img, processed_img]
         
+        import re
+        
         for i in images:
             for config in configs:
                 try:
                     text = pytesseract.image_to_string(i, lang='eng', config=config)
-                    cleaned = text.replace(",", "").replace(" ", "").replace("\n", "").strip()
-                    if cleaned and cleaned.isdigit():
-                        price = int(cleaned)
+                    # 暴力清洗：剔除所有非数字字符（比如千分位逗号、误识别的标点、字母等）
+                    digits_only = re.sub(r'\D', '', text)
+                    if digits_only:
+                        price = int(digits_only)
+                        # 最低门槛设定为 1，确保子弹等便宜物品能被正常购买
                         if 1 <= price <= 100000000:
                             return {"price": price, "preview": preview_b64}
                 except Exception as e:
