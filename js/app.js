@@ -578,24 +578,6 @@
     chart.update('none');
   }
 
-  // ===== 定时启动检查 =====
-  let autoStartChecked = '';
-
-  function checkAutoStart() {
-    if (state.isRunning) return;
-    if (!state.config.scheduledTime) return;
-
-    const now = new Date();
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-    if (currentTime === state.config.scheduledTime && autoStartChecked !== currentTime) {
-      autoStartChecked = currentTime;
-      addLog('warning', `定时时间 ${currentTime} 到达，自动启动监控!`);
-      startMonitoring();
-    }
-  }
-
-  setInterval(checkAutoStart, 1000);
 
   // ===== 事件绑定 =====
   dom.btnStart.addEventListener('click', startMonitoring);
@@ -640,17 +622,7 @@
     });
   }
 
-  // 键盘快捷键（模拟）
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'F8') {
-      e.preventDefault();
-      if (!state.isRunning) startMonitoring();
-    }
-    if (e.key === 'F9') {
-      e.preventDefault();
-      if (state.isRunning) stopMonitoring();
-    }
-  });
+
 
   // ===== Python 后端通信事件 =====
   window.addEventListener('bot-log', (e) => {
@@ -710,6 +682,14 @@
             stopMonitoring();
         }
     }
+    if (data.is_running === true && !state.isRunning) {
+        state.isRunning = true;
+        dom.btnStart.disabled = true;
+        dom.btnStop.disabled = false;
+        dom.btnStart.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> 监控中...`;
+        addLog('warning', '[后台触发] 后端定时任务已启动监控！');
+    }
+    
     if (data.is_running === false && state.isRunning) {
         stopMonitoring();
     }
