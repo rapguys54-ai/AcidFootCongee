@@ -67,7 +67,7 @@ def main():
     
     # 创建 WebView 窗口
     window = webview.create_window(
-        title='Delta Force AutoBuy — 作战控制台',
+        title='酸脚粥很好吃',
         url=web_path,
         js_api=api,
         width=1200,
