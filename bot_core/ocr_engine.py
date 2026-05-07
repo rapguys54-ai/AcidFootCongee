@@ -62,12 +62,23 @@ class OcrEngine:
             return None
 
     def preprocess_image(self, img):
-        """图像预处理以提升识别率"""
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
-        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-        return cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        """多维度图像预处理以提升极小字体的识别率"""
+        # 1. 强制无损缩放 3 倍 (Tesseract 识别 30px 高度最佳，游戏 UI 往往只有 12px)
+        scaled = cv2.resize(img, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
+        gray = cv2.cvtColor(scaled, cv2.COLOR_BGR2GRAY)
+        
+        # 2. 增加对比度 (CLAHE 对游戏 UI 效果极佳)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        enhanced_gray = clahe.apply(gray)
+        
+        # 3. 生成正向 OTSU 二值化 (黑底白字 -> 白底黑字)
+        _, thresh = cv2.threshold(enhanced_gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+        
+        # 4. 生成反向 OTSU 二值化 (防白底黑字)
+        _, thresh_inv = cv2.threshold(enhanced_gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+        
+        # 返回预处理后的图片矩阵
+        return [enhanced_gray, thresh_inv, thresh]
 
     def get_price(self, region_tuple):
         """根据屏幕区域识别价格，并返回价格和截图预览"""
@@ -75,35 +86,39 @@ class OcrEngine:
         if img is None:
             return {"price": None, "preview": None}
             
-        processed_img = self.preprocess_image(img)
-        
         # 提取用于前端预览的 Base64 (使用原图，质量设为 60)
         _, buffer = cv2.imencode('.jpg', img, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
         preview_b64 = base64.b64encode(buffer).decode('utf-8')
         
-        configs = [
-            "--psm 6 --oem 3 -c tessedit_char_whitelist=0123456789,",
-            "--psm 7 --oem 3 -c tessedit_char_whitelist=0123456789,",
-            "--psm 8 --oem 3 -c tessedit_char_whitelist=0123456789,"
-        ]
+        # 获取预处理后的多形态图片矩阵
+        processed_images = self.preprocess_image(img)
+        images_to_test = [img] + processed_images
         
-        images = [img, processed_img]
+        # 宽容的多层次识别配置矩阵
+        configs = [
+            "--psm 7 -c tessedit_char_whitelist=0123456789,", # 单行纯数字
+            "--psm 8 -c tessedit_char_whitelist=0123456789,", # 单个词块纯数字
+            "--psm 7", # 不限制白名单，允许识别出杂质字母，依靠后置正则清洗
+            "--psm 6"  # 假设有多行杂乱文本的宽容模式
+        ]
         
         import re
         
-        for i in images:
+        # 矩阵式交叉识别，命中即停
+        for i in images_to_test:
             for config in configs:
                 try:
                     text = pytesseract.image_to_string(i, lang='eng', config=config)
-                    # 暴力清洗：剔除所有非数字字符（比如千分位逗号、误识别的标点、字母等）
+                    # 暴力清洗：剔除所有非数字字符（比如千分位逗号、误识别的字母等）
                     digits_only = re.sub(r'\D', '', text)
                     if digits_only:
                         price = int(digits_only)
-                        # 最低门槛设定为 1，确保子弹等便宜物品能被正常购买
+                        # 最低门槛设定为 1
                         if 1 <= price <= 100000000:
                             return {"price": price, "preview": preview_b64}
                 except Exception as e:
                     logger.debug(f"OCR 识别尝试失败: {e}")
                     continue
                     
+        # 全部策略失败
         return {"price": None, "preview": preview_b64}
