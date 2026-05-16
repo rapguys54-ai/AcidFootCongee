@@ -58,17 +58,30 @@ class ConfigManager:
             else:
                 self.delays[key] = 0.01
 
-    def update_position(self, key_name, new_position):
-        """更新特定键的相对坐标并保存到文件"""
+    def update_position(self, index_or_name, new_position):
+        """更新指定项的相对坐标并保存到文件
+        
+        Args:
+            index_or_name: 整数索引（如 0 表示第一项）或字符串名称（按 key_name 匹配）
+            new_position: 新的坐标列表 [rel_x, rel_y]
+        """
         if not self.config or 'keys' not in self.config:
             self.load()
             
         updated = False
-        for item in self.config['keys']:
-            if item.get('key_name') == key_name:
-                item['position'] = new_position
+        
+        if isinstance(index_or_name, int):
+            # 按索引直接更新
+            if 0 <= index_or_name < len(self.config['keys']):
+                self.config['keys'][index_or_name]['position'] = new_position
                 updated = True
-                break
+        else:
+            # 按 key_name 匹配（向后兼容）
+            for item in self.config['keys']:
+                if item.get('key_name') == index_or_name:
+                    item['position'] = new_position
+                    updated = True
+                    break
                 
         if updated:
             with open(self.config_path, 'w', encoding='utf-8') as f:

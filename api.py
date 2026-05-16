@@ -6,9 +6,14 @@ import sys
 import datetime
 import logging
 
-try:
-    import keyboard
-except ImportError:
+# keyboard 库仅在 Windows 上可用且安全
+# macOS 上 keyboard 的 Quartz Event Tap 会与 pywebview 的 Cocoa 主线程冲突导致 bus error
+if sys.platform == 'win32':
+    try:
+        import keyboard
+    except ImportError:
+        keyboard = None
+else:
     keyboard = None
 
 # 配置日志框架替代 print()
@@ -112,7 +117,7 @@ class BackendAPI:
             self.push_log("INFO", "[系统热键] 已通过 F9 紧急停止自动化。")
             
     def _hotkey_grab_coord(self):
-        """全局热键 F8 回调：抓取鼠标在游戏内的相对坐标"""
+        """全局热键 F8 回调：抓取鼠标在游戏内的相对坐标，并更新到第一个配置项"""
         try:
             import pyautogui
             from bot_core.automation import GameAutomation
@@ -131,20 +136,34 @@ class BackendAPI:
             rel_y = (abs_y - window_info['offset_y']) / window_info['height']
             
             if 0 <= rel_x <= 1 and 0 <= rel_y <= 1:
-                rel_x = round(rel_x, 3)
-                rel_y = round(rel_y, 3)
+                rel_x = round(rel_x, 4)
+                rel_y = round(rel_y, 4)
                 
-                # 写入 keys.json（默认更新第一项）
+                # 直接按索引更新第一个配置项的 position
                 cm = ConfigManager(self.config_path)
-                updated = cm.update_position("door_card_1", [rel_x, rel_y])
+                updated = cm.update_position(0, [rel_x, rel_y])
                 if updated:
-                    self.push_log("SUCCESS", f"[F8 抓取] 坐标已更新为: [{rel_x}, {rel_y}]。")
+                    self.push_log("SUCCESS", f"[F8 抓取] 子弹位置坐标已更新为: [{rel_x}, {rel_y}]")
+                    # 同步推送到前端以刷新坐标显示
+                    self._push_coord_update_to_frontend(rel_x, rel_y)
                 else:
-                    self.push_log("WARNING", "[F8 抓取] 更新失败：配置文件中未找到 door_card_1 项。")
+                    self.push_log("WARNING", "[F8 抓取] 更新失败：配置文件中没有可用的配置项。请先保存一次配置。")
             else:
                 self.push_log("WARNING", f"[F8 抓取] 鼠标不在游戏窗口内，当前坐标({abs_x}, {abs_y})无效。")
         except Exception as e:
             self.push_log("ERROR", f"抓取坐标时发生异常: {e}")
+
+    def _push_coord_update_to_frontend(self, rel_x, rel_y):
+        """将 F8 抓取的坐标推送到前端 UI"""
+        if not self._window:
+            return
+        try:
+            detail = json.dumps({"rel_x": rel_x, "rel_y": rel_y}, ensure_ascii=False)
+            self._window.evaluate_js(
+                f"window.dispatchEvent(new CustomEvent('coord-update', {{detail: {detail}}}))"
+            )
+        except Exception as e:
+            logger.debug(f"推送坐标更新到前端失败: {e}")
 
     def _auto_start_daemon(self):
         """后台守护线程：精准触发定时启动"""
@@ -249,7 +268,7 @@ class BackendAPI:
             logger.warning(f"应用前端配置失败（非致命）: {e}")
 
     def _bot_loop(self):
-        """真实的自动化循环逻辑"""
+        """真实的自动化循环逻辑 — 购买子弹"""
         from bot_core import ConfigManager, GameAutomation, OcrEngine
         
         # 兼容 macOS 下的测试运行（跳过 win32gui）
@@ -257,7 +276,7 @@ class BackendAPI:
             self.push_log("WARNING", "⚠️ 当前运行在非 Windows 系统，自动化点击与游戏窗口识别功能将被受限或模拟")
         import pyautogui
             
-        self.push_log("INFO", "自动化脚本已启动，开始监控...")
+        self.push_log("INFO", "自动化脚本已启动，开始监控子弹价格...")
         
         try:
             cm = ConfigManager(self.config_path)
@@ -268,7 +287,7 @@ class BackendAPI:
             ocr = OcrEngine()
             
             while not self._stop_event.is_set():
-                # 遍历所有配置的门卡
+                # 遍历所有配置项
                 for card_info in keys_config:
                     if self._stop_event.is_set():
                         break
@@ -284,15 +303,15 @@ class BackendAPI:
                         
                     coords = auto.get_coordinates()
                     
-                    # 1. 点击门卡位置
+                    # 1. 点击子弹物品位置
                     position = card_info.get("position")
                     if position and len(position) >= 2:
                         auto.click_relative(position[0], position[1], delays)
                     else:
-                        self.push_log("WARNING", "配置文件中未设置门卡点击位置 (position)")
+                        self.push_log("WARNING", "配置文件中未设置子弹点击位置 (position)，请先通过 F8 抓取或在界面中设置")
                         continue
                         
-                    # 2. 识别价格
+                    # 2. 识别价格（OCR 区域）
                     price_region = card_info.get('detail_price_region')
                     
                     if price_region and 'top_left' in price_region and 'bottom_right' in price_region:
@@ -345,7 +364,7 @@ class BackendAPI:
                     # 线程安全地更新状态
                     with self._lock:
                         self.status["last_price"] = current_price
-                    self.push_log("INFO", f"🎯 [雷达确认] 锁定目标价格: {current_price:,} 金币")
+                    self.push_log("INFO", f"🎯 [雷达确认] 锁定子弹价格: {current_price:,} 金币")
                     
                     # 每次识别到价格都推送 bot-status 事件（不只是购买时）
                     self._push_status_to_frontend()
@@ -356,14 +375,17 @@ class BackendAPI:
                     if max_price > 0 and current_price <= max_price:
                         self.push_log("SUCCESS", f"⚡ [致命一击] 价格({current_price:,}) <= 预算({max_price:,})，条件满足，立刻执行战术购买！")
                         
-                        # 执行购买逻辑
-                        auto.click_relative(0.825, 0.90, delays)  # 点击购买按钮
+                        # 从配置读取购买按钮位置（可自定义），默认值上移到合理位置
+                        buy_btn = card_info.get("buy_button_position", [0.825, 0.85])
+                        auto.click_relative(buy_btn[0], buy_btn[1], delays)
                         import random
                         time.sleep(random.uniform(0.1, 0.3)) # 拟人化停顿
                         if self._stop_event.wait(timeout=delays.get('buy_button', 0.01)):
                             break
                         
-                        auto.click_relative(0.55, 0.65, delays)  # 点击确认按钮
+                        # 从配置读取确认按钮位置（可自定义）
+                        confirm_btn = card_info.get("confirm_button_position", [0.55, 0.65])
+                        auto.click_relative(confirm_btn[0], confirm_btn[1], delays)
                         time.sleep(random.uniform(0.3, 0.8)) # 拟人化：确认弹窗也需要反应时间
                         if self._stop_event.wait(timeout=delays.get('buy_complete', 0.01)):
                             break
@@ -373,7 +395,7 @@ class BackendAPI:
                             current_purchases = self.status["total_purchases"]
                         
                         target_amount = int(card_info.get('buyAmount', 1))
-                        self.push_log("SUCCESS", f"✅ [收网] 成功捕获目标！当前进度: {current_purchases} / {target_amount}")
+                        self.push_log("SUCCESS", f"✅ [收网] 成功购买子弹！当前进度: {current_purchases} / {target_amount}")
                         self._push_status_to_frontend()
                         
                         if current_purchases >= target_amount:

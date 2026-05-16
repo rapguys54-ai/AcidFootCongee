@@ -9,13 +9,21 @@
             "detail_price_region": {
                 "top_left": [
                     0.7795,
-                    0.8211
+                    0.7600
                 ],
                 "bottom_right": [
                     0.8862,
-                    0.882
+                    0.8200
                 ]
             },
+            "buy_button_position": [
+                0.825,
+                0.85
+            ],
+            "confirm_button_position": [
+                0.55,
+                0.65
+            ],
             "buyAmount": 3,
             "scheduledTime": "20:58",
             "runDuration": 0.2
