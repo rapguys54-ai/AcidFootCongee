@@ -1,741 +1,670 @@
-/**
- * Delta Force AutoBuy — 前端控制逻辑
- * 负责 UI 交互、模拟数据展示、图表渲染
- * 后续将对接后端 WebSocket / REST API
- */
+'use strict';
+// ═══════════════════════════════════════
+// AcidFootCongee — app.js v2.0
+// ═══════════════════════════════════════
 
 (function () {
-  'use strict';
 
-  // ===== 状态管理 =====
-  const state = {
-    isRunning: false,
-    isPaused: false,
-    debugMode: false,
-    startTime: null,
-    elapsedSeconds: 0,
-    boughtCount: 0,
-    totalTarget: 3,
-    prices: [],
-    config: {
-      maxPrice: 50000,
-      buyAmount: 3,
-      scheduledTime: '17:49',
-      runDuration: 10,
-    },
-  };
-
-  // ===== DOM 引用 =====
+  // ───── DOM 缓存 ─────
   const dom = {
-    statusIndicator: document.getElementById('statusIndicator'),
-    statusText: document.querySelector('.status-text'),
-    statusDot: document.querySelector('.status-dot'),
-    systemTime: document.getElementById('systemTime'),
-    btnStart: document.getElementById('btnStart'),
-    btnStop: document.getElementById('btnStop'),
+    // 视图
+    tabDashboard: document.getElementById('tabDashboard'),
+    tabLibrary:   document.getElementById('tabLibrary'),
+    viewDashboard: document.getElementById('viewDashboard'),
+    viewLibrary:   document.getElementById('viewLibrary'),
+    // 控制
+    btnStart:     document.getElementById('btnStart'),
+    btnStop:      document.getElementById('btnStop'),
     btnEmergency: document.getElementById('btnEmergency'),
-    btnSettings: document.getElementById('btnSettings'),
-    btnClearLogs: document.getElementById('btnClearLogs'),
+    btnSaveConfig: document.getElementById('btnSaveConfig'),
+    // 监控
+    statusIndicator: document.getElementById('statusIndicator'),
+    statusText:   document.getElementById('statusText'),
     monitorBadge: document.getElementById('monitorBadge'),
     currentPrice: document.getElementById('currentPrice'),
-    priceTrend: document.getElementById('priceTrend'),
-    maxPriceDisplay: document.getElementById('maxPriceDisplay'),
-    boughtCount: document.getElementById('boughtCount'),
-    totalTarget: document.getElementById('totalTarget'),
-    elapsedTime: document.getElementById('elapsedTime'),
-    toggleDebug: document.getElementById('toggleDebug'),
+    priceTrend:   document.getElementById('priceTrend'),
+    boughtCount:  document.getElementById('boughtCount'),
+    elapsedTime:  document.getElementById('elapsedTime'),
+    ocrCount:     document.getElementById('ocrCount'),
+    currentBulletName:   document.getElementById('currentBulletName'),
+    currentBulletBudget: document.getElementById('currentBulletBudget'),
+    ocrCanvas:    document.getElementById('ocrCanvas'),
+    systemTime:   document.getElementById('systemTime'),
+    // 今日清单
+    queueList:  document.getElementById('queueList'),
+    queueEmpty: document.getElementById('queueEmpty'),
+    btnGoLibrary:  document.getElementById('btnGoLibrary'),
+    btnGoLibrary2: document.getElementById('btnGoLibrary2'),
     logStream: document.getElementById('logStream'),
-    avgPrice: document.getElementById('avgPrice'),
-    highPrice: document.getElementById('highPrice'),
-    lowPrice: document.getElementById('lowPrice'),
-    checkCount: document.getElementById('checkCount'),
-    inputMaxPrice: document.getElementById('inputMaxPrice'),
-    inputBuyAmount: document.getElementById('inputBuyAmount'),
-    inputScheduledTime: document.getElementById('inputScheduledTime'),
-    inputRunDuration: document.getElementById('inputRunDuration'),
-    priceChart: document.getElementById('priceChart'),
-    // 延迟配置输入框
-    delayWindowFocus: document.getElementById('delayWindowFocus'),
-    delayMouseMove: document.getElementById('delayMouseMove'),
-    delayMouseDown: document.getElementById('delayMouseDown'),
-    delayBuyButton: document.getElementById('delayBuyButton'),
-    delayBuyComplete: document.getElementById('delayBuyComplete'),
-    delayEscKey: document.getElementById('delayEscKey'),
-    delayLoopInterval: document.getElementById('delayLoopInterval'),
-    btnSaveConfig: document.getElementById('btnSaveConfig'),
+    // 子弹百科
+    caliberTree:  document.getElementById('caliberTree'),
+    variantsGrid: document.getElementById('variantsGrid'),
+    selectedCaliber: document.getElementById('selectedCaliber'),
+    // 弹窗
+    modalOverlay: document.getElementById('modalOverlay'),
+    modalClose:   document.getElementById('modalClose'),
+    modalCancel:  document.getElementById('modalCancel'),
+    modalConfirm: document.getElementById('modalConfirm'),
+    modalName:    document.getElementById('modalName'),
+    modalCaliber: document.getElementById('modalCaliber'),
+    modalMaxPrice: document.getElementById('modalMaxPrice'),
+    // 配置
+    inputScheduledTime:  document.getElementById('inputScheduledTime'),
+    inputSoldOutTimeout: document.getElementById('inputSoldOutTimeout'),
+    // CRUD DOM
+    btnAddCaliber: document.getElementById('btnAddCaliber'),
+    btnAddVariant: document.getElementById('btnAddVariant'),
+    caliberModalOverlay: document.getElementById('caliberModalOverlay'),
+    caliberModalClose: document.getElementById('caliberModalClose'),
+    caliberModalCancel: document.getElementById('caliberModalCancel'),
+    caliberModalConfirm: document.getElementById('caliberModalConfirm'),
+    caliberModalName: document.getElementById('caliberModalName'),
+    caliberModalTitle: document.getElementById('caliberModalTitle'),
+    variantModalOverlay: document.getElementById('variantModalOverlay'),
+    variantModalClose: document.getElementById('variantModalClose'),
+    variantModalCancel: document.getElementById('variantModalCancel'),
+    variantModalConfirm: document.getElementById('variantModalConfirm'),
+    variantModalName: document.getElementById('variantModalName'),
+    variantModalTier: document.getElementById('variantModalTier'),
+    variantModalTitle: document.getElementById('variantModalTitle'),
   };
 
-  // ===== 时钟 =====
-  function updateClock() {
-    const now = new Date();
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    const s = String(now.getSeconds()).padStart(2, '0');
-    dom.systemTime.textContent = `${h}:${m}:${s}`;
-  }
-  setInterval(updateClock, 1000);
-  updateClock();
+  // ───── 状态 ─────
+  const state = {
+    isRunning: false,
+    prices: [],
+    ocrHitCount: 0,
+    startTime: null,
+    timerInterval: null,
+    bulletLibrary: null,   // 子弹百科数据
+    todayBullets: [],      // 今日清单
+    lastGrabbedCoord: null, // F8 上次抓取的坐标
+    currentCaliberId: null, // 当前选中的口径ID
+    editCaliberId: null,   // 正在编辑的口径ID
+    editVariantId: null    // 正在编辑的变体ID
+  };
 
-  // ===== 运行计时器 =====
-  let timerInterval = null;
-
-  function startTimer() {
-    state.startTime = Date.now();
-    timerInterval = setInterval(() => {
-      state.elapsedSeconds = Math.floor((Date.now() - state.startTime) / 1000);
-      const mins = String(Math.floor(state.elapsedSeconds / 60)).padStart(2, '0');
-      const secs = String(state.elapsedSeconds % 60).padStart(2, '0');
-      dom.elapsedTime.textContent = `${mins}:${secs}`;
-
-      // 检查运行时长
-      const durationSec = state.config.runDuration * 60;
-      if (durationSec > 0 && state.elapsedSeconds >= durationSec) {
-        addLog('warning', `已运行 ${state.config.runDuration} 分钟，自动停止`);
-        stopMonitoring();
-      }
-    }, 1000);
-  }
-
-  function stopTimer() {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-
-  // ===== 日志系统 =====
-  function addLog(level, message) {
-    const now = new Date();
-    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-
-    const icons = {
-      info: '\u2139',
-      success: '\u2713',
-      warning: '\u26A0',
-      error: '\u2717',
-    };
-
-    const entry = document.createElement('div');
-    entry.className = `log-entry log-entry--${level} log-entry--new`;
-    entry.innerHTML = `
-      <span class="log-entry__time">${time}</span>
-      <span class="log-entry__icon">${icons[level] || '\u25C6'}</span>
-      <span class="log-entry__msg">${message}</span>
-    `;
-
-    dom.logStream.appendChild(entry);
-    dom.logStream.scrollTop = dom.logStream.scrollHeight;
-
-    // 移除动画类
-    setTimeout(() => entry.classList.remove('log-entry--new'), 300);
-
-    // 限制日志条数
-    while (dom.logStream.children.length > 200) {
-      dom.logStream.removeChild(dom.logStream.firstChild);
-    }
-  }
-
-  // ===== 状态切换 =====
-  function setRunningState(running) {
-    state.isRunning = running;
-
-    dom.statusIndicator.classList.toggle('active', running);
-    dom.statusText.textContent = running ? '监控中' : '待命中';
-    dom.monitorBadge.textContent = running ? 'ACTIVE' : 'STANDBY';
-    dom.monitorBadge.classList.toggle('active', running);
-
-    dom.btnStart.disabled = running;
-    dom.btnStop.disabled = !running;
-
-    if (running) {
-      dom.btnStart.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        监控中...`;
-    } else {
-      dom.btnStart.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        开始监控`;
-    }
-  }
-
-  // ===== 启动监控 =====
-  async function startMonitoring() {
-    // 读取最新配置
-    syncConfigFromInputs();
-
-    if (window.bridge) {
-      const res = await window.bridge.startBot(state.config);
-      if (res && res.code !== 200) {
-        addLog('error', '启动失败: ' + res.message);
-        return;
-      }
-    }
-
-    setRunningState(true);
-    startTimer();
-    addLog('success', '开始自动购买监控');
-    addLog('info', `最高价格: ${state.config.maxPrice.toLocaleString()} | 数量: ${state.config.buyAmount}`);
-
-    // 启动模拟价格循环（如果没有检测到 pywebview 环境）
-    if (!window.pywebview) {
-        startPriceSimulation();
-    }
-  }
-
-  // ===== 停止监控 =====
-  async function stopMonitoring() {
-    if (window.bridge) {
-      await window.bridge.stopBot();
-    }
-    setRunningState(false);
-    stopTimer();
-    stopPriceSimulation();
-    addLog('info', '停止循环');
-    updateStats();
-  }
-
-  // ===== 紧急退出 =====
-  // 紧急退出：confirm-on-click 模式（首次点击变为确认状态，3秒内再次点击才执行）
-  let emergencyConfirmTimer = null;
-
-  async function emergencyExit() {
-    // 如果已经在确认状态，执行退出
-    if (dom.btnEmergency.classList.contains('confirming')) {
-      clearTimeout(emergencyConfirmTimer);
-      dom.btnEmergency.classList.remove('confirming');
-      dom.btnEmergency.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        紧急退出`;
-
-      if (window.bridge) {
-        await window.bridge.stopBot();
-      }
-      setRunningState(false);
-      stopTimer();
-      stopPriceSimulation();
-      addLog('error', '程序已紧急终止');
-      return;
-    }
-
-    // 首次点击：进入确认状态
-    dom.btnEmergency.classList.add('confirming');
-    dom.btnEmergency.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      确认退出？`;
-    addLog('warning', '请在 3 秒内再次点击确认紧急退出');
-
-    // 3秒后自动取消确认状态
-    emergencyConfirmTimer = setTimeout(() => {
-      dom.btnEmergency.classList.remove('confirming');
-      dom.btnEmergency.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        紧急退出`;
-    }, 3000);
-  }
-
-  // ===== 同步输入到配置 =====
-  function syncConfigFromInputs() {
-    const raw = dom.inputMaxPrice.value.replace(/,/g, '').trim();
-    state.config.maxPrice = parseInt(raw, 10) || 50000;
-    state.config.buyAmount = parseInt(dom.inputBuyAmount.value, 10) || 3;
-    state.config.scheduledTime = dom.inputScheduledTime.value || '';
-    state.config.runDuration = parseFloat(dom.inputRunDuration.value) || 10;
-
-    // 收集延迟配置
-    state.config.delays = collectDelaysFromUI();
-
-    state.totalTarget = state.config.buyAmount;
-    dom.totalTarget.textContent = state.totalTarget;
-    dom.maxPriceDisplay.textContent = state.config.maxPrice.toLocaleString();
-  }
-
-  // ===== 收集延迟配置 =====
-  function collectDelaysFromUI() {
-    return {
-      window_focus: parseFloat(dom.delayWindowFocus?.value) || 0,
-      mouse_move: parseFloat(dom.delayMouseMove?.value) || 0,
-      mouse_down: parseFloat(dom.delayMouseDown?.value) || 0,
-      buy_button: parseFloat(dom.delayBuyButton?.value) || 0,
-      buy_complete: parseFloat(dom.delayBuyComplete?.value) || 0,
-      esc_key: parseFloat(dom.delayEscKey?.value) || 0,
-      loop_interval: parseFloat(dom.delayLoopInterval?.value) || 0,
-    };
-  }
-
-  // ===== 从后端配置应用到 UI =====
-  function applyConfigToUI(data) {
-    if (!data) return;
-
-    // 缓存原始后端配置，保存时保留 position/region 等 UI 不编辑的字段
-    state._rawBackendConfig = data;
-
-    // 应用 keys 配置（取第一个门卡的配置）
-    const keys = data.keys;
-    if (keys && keys.length > 0) {
-      const first = keys[0];
-      if (first.max_price !== undefined) {
-        const price = Number(first.max_price);
-        // 过滤掉不合理的超大值
-        if (price < 100000000) {
-          dom.inputMaxPrice.value = price.toLocaleString();
-          state.config.maxPrice = price;
-        }
-      }
-      if (first.buyAmount !== undefined) {
-        dom.inputBuyAmount.value = first.buyAmount;
-        state.config.buyAmount = parseInt(first.buyAmount, 10);
-      }
-      if (first.scheduledTime !== undefined) {
-        dom.inputScheduledTime.value = first.scheduledTime;
-        state.config.scheduledTime = first.scheduledTime;
-      }
-      if (first.runDuration !== undefined) {
-        dom.inputRunDuration.value = first.runDuration;
-        state.config.runDuration = parseFloat(first.runDuration);
-      }
-    }
-
-    // 应用延迟配置
-    const delays = data.delays;
-    if (delays) {
-      const delayMap = {
-        window_focus: dom.delayWindowFocus,
-        mouse_move: dom.delayMouseMove,
-        mouse_down: dom.delayMouseDown,
-        buy_button: dom.delayBuyButton,
-        buy_complete: dom.delayBuyComplete,
-        esc_key: dom.delayEscKey,
-        loop_interval: dom.delayLoopInterval,
-      };
-      for (const [key, input] of Object.entries(delayMap)) {
-        if (input && delays[key] !== undefined) {
-          input.value = delays[key];
-        }
-      }
-    }
-
-    // 同步状态和 UI 显示
-    state.totalTarget = state.config.buyAmount;
-    dom.totalTarget.textContent = state.totalTarget;
-    dom.maxPriceDisplay.textContent = state.config.maxPrice.toLocaleString();
-
-    addLog('success', '后端配置已加载并同步到界面');
-  }
-
-  // ===== 保存配置到后端（持久化 keys.json） =====
-  async function saveConfigToBackend() {
-    // 先同步最新的前端输入
-    syncConfigFromInputs();
-
-    // 构建符合后端 keys.json 格式的配置对象
-    const configData = {
-      keys: [
-        {
-          max_price: state.config.maxPrice,
-          position: [0.3517, 0.2678],  // 保留已有的位置配置
-          detail_price_region: {
-            top_left: [0.7795, 0.8211],
-            bottom_right: [0.8862, 0.882],
-          },
-          buyAmount: state.config.buyAmount,
-          scheduledTime: state.config.scheduledTime,
-          runDuration: state.config.runDuration,
-        },
-      ],
-      delays: {
-        window_focus: { value: state.config.delays?.window_focus || 0 },
-        mouse_move: { value: state.config.delays?.mouse_move || 0 },
-        mouse_down: { value: state.config.delays?.mouse_down || 0 },
-        buy_button: { value: state.config.delays?.buy_button || 0 },
-        buy_complete: { value: state.config.delays?.buy_complete || 0 },
-        esc_key: { value: state.config.delays?.esc_key || 0 },
-        loop_interval: { value: state.config.delays?.loop_interval || 0 },
-      },
-    };
-
-    // 如果后端已加载过配置，尝试保留原始 position 和 region
-    if (state._rawBackendConfig) {
-      const origKeys = state._rawBackendConfig.keys;
-      if (origKeys && origKeys.length > 0) {
-        if (origKeys[0].position) configData.keys[0].position = origKeys[0].position;
-        if (origKeys[0].detail_price_region) configData.keys[0].detail_price_region = origKeys[0].detail_price_region;
-      }
-    }
-
-    if (!window.bridge) {
-      addLog('warning', '未连接后端，无法保存配置');
-      return;
-    }
-
-    // 禁用按钮防止重复点击
-    dom.btnSaveConfig.disabled = true;
-
-    try {
-      const res = await window.bridge.saveConfig(configData);
-      if (res && res.code === 200) {
-        addLog('success', '✅ 配置已保存到 keys.json');
-        // 按钮短暂变绿色反馈
-        dom.btnSaveConfig.classList.add('saved');
-        setTimeout(() => {
-          dom.btnSaveConfig.classList.remove('saved');
-        }, 1500);
-      } else {
-        addLog('error', '保存配置失败: ' + (res?.message || '未知错误'));
-      }
-    } catch (e) {
-      addLog('error', '保存配置异常: ' + e.message);
-    } finally {
-      dom.btnSaveConfig.disabled = false;
-    }
-  }
-
-  // ===== 模拟价格数据（v0 原型演示用） =====
-  let priceSimInterval = null;
-
-  function startPriceSimulation() {
-    const basePrice = 35000;
-    const variance = 25000;
-
-    priceSimInterval = setInterval(() => {
-      if (!state.isRunning) return;
-
-      // 生成随机价格
-      const price = Math.floor(basePrice + Math.random() * variance);
-      state.prices.push(price);
-
-      // 更新 UI
-      dom.currentPrice.textContent = price.toLocaleString();
-
-      // 趋势
-      if (state.prices.length > 1) {
-        const prev = state.prices[state.prices.length - 2];
-        const diff = price - prev;
-        if (diff > 0) {
-          dom.priceTrend.textContent = `+${diff.toLocaleString()}`;
-          dom.priceTrend.style.color = 'var(--clr-danger-light)';
-        } else if (diff < 0) {
-          dom.priceTrend.textContent = diff.toLocaleString();
-          dom.priceTrend.style.color = 'var(--clr-success)';
-        } else {
-          dom.priceTrend.textContent = '0';
-          dom.priceTrend.style.color = 'var(--clr-text-muted)';
-        }
-      }
-
-      // 判断购买
-      if (price <= state.config.maxPrice) {
-        addLog('success', `已购买门卡, 价格: ${price.toLocaleString()}`);
-        state.boughtCount++;
-        dom.boughtCount.textContent = state.boughtCount;
-
-        if (state.boughtCount >= state.totalTarget) {
-          addLog('success', '门卡已购买完成!');
-          stopMonitoring();
-          return;
-        }
-      } else {
-        addLog('info', `价格 ${price.toLocaleString()} > ${state.config.maxPrice.toLocaleString()}，跳过`);
-      }
-
-      // 更新实时统计
-      dom.checkCount.textContent = state.prices.length;
-      updateChart(price);
-      updateStats();
-    }, 2000);
-  }
-
-  function stopPriceSimulation() {
-    clearInterval(priceSimInterval);
-    priceSimInterval = null;
-  }
-
-  // ===== 统计更新 =====
-  function updateStats() {
-    if (state.prices.length === 0) return;
-
-    const avg = state.prices.reduce((a, b) => a + b, 0) / state.prices.length;
-    const high = Math.max(...state.prices);
-    const low = Math.min(...state.prices);
-
-    dom.avgPrice.textContent = Math.round(avg).toLocaleString();
-    dom.highPrice.textContent = high.toLocaleString();
-    dom.lowPrice.textContent = low.toLocaleString();
-    dom.checkCount.textContent = state.prices.length;
-  }
-
-  // ===== 价格图表（Chart.js） =====
   let chart = null;
 
-  function initChart() {
-    // 检查 Chart.js 是否加载
-    if (typeof Chart === 'undefined') {
-      // 本地优先、CDN 降级策略
-      const script = document.createElement('script');
-      script.src = 'js/lib/chart.min.js';
-      script.onload = () => createChart();
-      script.onerror = () => {
-        // 本地加载失败，尝试 CDN 降级
-        console.warn('本地 Chart.js 加载失败，尝试 CDN...');
-        const cdnScript = document.createElement('script');
-        cdnScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-        cdnScript.onload = () => createChart();
-        cdnScript.onerror = () => {
-          console.error('Chart.js 加载失败（本地和 CDN 均不可用）');
-          addLog('warning', '价格走势图表组件加载失败，图表功能不可用');
-        };
-        document.head.appendChild(cdnScript);
-      };
-      document.head.appendChild(script);
+  // ═══════════════════════════════════════
+  // 视图切换
+  // ═══════════════════════════════════════
+
+  function switchView(viewName) {
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('view-tab--active'));
+    document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('view-panel--active'));
+    if (viewName === 'library') {
+      dom.tabLibrary.classList.add('view-tab--active');
+      dom.viewLibrary.classList.add('view-panel--active');
     } else {
-      createChart();
+      dom.tabDashboard.classList.add('view-tab--active');
+      dom.viewDashboard.classList.add('view-panel--active');
     }
   }
 
-  function createChart() {
-    const ctx = dom.priceChart.getContext('2d');
+  dom.tabDashboard.addEventListener('click', () => switchView('dashboard'));
+  dom.tabLibrary.addEventListener('click', () => switchView('library'));
+  dom.btnGoLibrary.addEventListener('click', () => switchView('library'));
+  dom.btnGoLibrary2.addEventListener('click', () => switchView('library'));
 
-    // 军事绿主题色
-    const primaryColor = 'rgba(76, 175, 110, 1)';
-    const primaryBg = 'rgba(76, 175, 110, 0.1)';
-    const gridColor = 'rgba(255, 255, 255, 0.05)';
+  // ═══════════════════════════════════════
+  // 坐标配置
+  // ═══════════════════════════════════════
 
+  const COORD_KEYS = ['search_box','first_card','slider_max','price_button','price_region','popup_region'];
+
+  function loadCoordsToUI(coords) {
+    if (!coords) return;
+    for (const key of COORD_KEYS) {
+      const val = coords[key];
+      if (!val) continue;
+      if (val.length === 2) {
+        const ex = document.getElementById(`coord_${key}_x`);
+        const ey = document.getElementById(`coord_${key}_y`);
+        if (ex) ex.value = val[0];
+        if (ey) ey.value = val[1];
+      } else if (val.length === 4) {
+        const e1 = document.getElementById(`coord_${key}_x1`);
+        const e2 = document.getElementById(`coord_${key}_y1`);
+        const e3 = document.getElementById(`coord_${key}_x2`);
+        const e4 = document.getElementById(`coord_${key}_y2`);
+        if (e1) e1.value = val[0];
+        if (e2) e2.value = val[1];
+        if (e3) e3.value = val[2];
+        if (e4) e4.value = val[3];
+      }
+    }
+  }
+
+  function readCoordsFromUI() {
+    const coords = {};
+    for (const key of COORD_KEYS) {
+      const ex = document.getElementById(`coord_${key}_x`);
+      if (ex) {
+        const ey = document.getElementById(`coord_${key}_y`);
+        coords[key] = [parseFloat(ex.value)||0, parseFloat(ey.value)||0];
+      } else {
+        const e1 = document.getElementById(`coord_${key}_x1`);
+        if (e1) {
+          coords[key] = [
+            parseFloat(e1.value)||0,
+            parseFloat(document.getElementById(`coord_${key}_y1`).value)||0,
+            parseFloat(document.getElementById(`coord_${key}_x2`).value)||0,
+            parseFloat(document.getElementById(`coord_${key}_y2`).value)||0,
+          ];
+        }
+      }
+    }
+    return coords;
+  }
+
+  // F8 抓取后一键应用到指定坐标
+  document.querySelectorAll('.btn-grab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!state.lastGrabbedCoord) {
+        addLog('warning', '请先在游戏中按 F8 抓取坐标');
+        return;
+      }
+      const key = btn.dataset.key;
+      const ex = document.getElementById(`coord_${key}_x`);
+      const ey = document.getElementById(`coord_${key}_y`);
+      if (ex && ey) {
+        ex.value = state.lastGrabbedCoord.rx;
+        ey.value = state.lastGrabbedCoord.ry;
+        addLog('success', `[坐标] 已应用到「${key}」: [${state.lastGrabbedCoord.rx}, ${state.lastGrabbedCoord.ry}]`);
+      }
+    });
+  });
+
+  // ═══════════════════════════════════════
+  // 子弹百科
+  // ═══════════════════════════════════════
+
+  async function loadBulletLibrary() {
+    if (!window.bridge) return;
+    const res = await window.bridge.getBulletLibrary();
+    if (res && res.code === 200) {
+      state.bulletLibrary = res.data;
+      renderCaliberTree(res.data.calibers);
+      
+      // 保持选中状态的渲染
+      if(state.currentCaliberId) {
+        const cal = res.data.calibers.find(c => c.id === state.currentCaliberId);
+        if(cal) renderVariants(cal);
+        else {
+          state.currentCaliberId = null;
+          dom.selectedCaliber.textContent = '请选择口径 →';
+          dom.btnAddVariant.style.display = 'none';
+        }
+      }
+    }
+  }
+
+  function renderCaliberTree(calibers) {
+    dom.caliberTree.innerHTML = '';
+    calibers.forEach(cal => {
+      const div = document.createElement('div');
+      div.className = 'caliber-item';
+      if (cal.id === state.currentCaliberId) div.classList.add('caliber-item--active');
+      div.innerHTML = `
+        <div class="caliber-item__name">
+          <span style="flex:1;">🔹 ${cal.name}</span>
+          <span class="caliber-item__count">${cal.variants.length}</span>
+          <div class="caliber-actions" style="display:flex;gap:4px;margin-left:8px;">
+            <button class="btn-edit-cal" style="background:none;border:none;cursor:pointer;font-size:12px;" title="编辑">✏️</button>
+            <button class="btn-del-cal" style="background:none;border:none;cursor:pointer;font-size:12px;" title="删除">🗑</button>
+          </div>
+        </div>`;
+      
+      div.querySelector('.caliber-item__name').addEventListener('click', (e) => {
+        if(e.target.closest('button')) return; // ignore button clicks
+        document.querySelectorAll('.caliber-item').forEach(c => c.classList.remove('caliber-item--active'));
+        div.classList.add('caliber-item--active');
+        state.currentCaliberId = cal.id;
+        dom.selectedCaliber.textContent = cal.name;
+        dom.btnAddVariant.style.display = 'inline-block';
+        renderVariants(cal);
+      });
+
+      div.querySelector('.btn-edit-cal').addEventListener('click', () => {
+        state.editCaliberId = cal.id;
+        dom.caliberModalTitle.textContent = '编辑口径';
+        dom.caliberModalName.value = cal.name;
+        dom.caliberModalOverlay.classList.add('modal-overlay--active');
+      });
+
+      div.querySelector('.btn-del-cal').addEventListener('click', async () => {
+        if(confirm(`确定删除口径「${cal.name}」及其所有子弹吗？`)) {
+          const res = await window.bridge.removeCaliber(cal.id);
+          if (res && res.code === 200) {
+            addLog('success', `已删除口径：${cal.name}`);
+            if(state.currentCaliberId === cal.id) {
+              state.currentCaliberId = null;
+              dom.selectedCaliber.textContent = '请选择口径 →';
+              dom.btnAddVariant.style.display = 'none';
+              dom.variantsGrid.innerHTML = '<div class="variants-empty"><span>👈 从左侧选择子弹口径</span></div>';
+            }
+            await loadBulletLibrary();
+          } else {
+            addLog('error', res.message || '删除失败');
+          }
+        }
+      });
+
+      dom.caliberTree.appendChild(div);
+    });
+  }
+
+  function renderVariants(caliber) {
+    const tierLabels = { 1:'Lv.1', 2:'Lv.2', 3:'Lv.3', 4:'Lv.4', 5:'Lv.5' };
+    dom.variantsGrid.innerHTML = '';
+    caliber.variants.forEach(v => {
+      const inQueue = state.todayBullets.some(b => b.name === v.name);
+      const tier = v.tier || 1;
+      const card = document.createElement('div');
+      card.className = `bullet-card bullet-card--tier-${tier}`;
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="bullet-card__name">${v.name}</div>
+            <span class="bullet-tier bullet-tier--${tier}">${tierLabels[tier]}</span>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <button class="btn-edit-var" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:0.6;" title="编辑">✏️</button>
+            <button class="btn-del-var" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:0.6;" title="删除">🗑</button>
+          </div>
+        </div>
+        <div class="bullet-card__caliber">${caliber.name}</div>
+        <div class="bullet-card__actions">
+          <button class="btn-add-queue" ${inQueue ? 'disabled' : ''}>
+            ${inQueue ? '✓ 已加入' : '+ 加入今日清单'}
+          </button>
+        </div>`;
+      
+      card.querySelector('.btn-edit-var').addEventListener('click', () => {
+        state.editVariantId = v.id;
+        dom.variantModalTitle.textContent = '编辑子弹';
+        dom.variantModalName.value = v.name;
+        dom.variantModalTier.value = v.tier;
+        dom.variantModalOverlay.classList.add('modal-overlay--active');
+      });
+
+      card.querySelector('.btn-del-var').addEventListener('click', async () => {
+        if(confirm(`确定删除子弹「${v.name}」吗？`)) {
+          const res = await window.bridge.removeVariant(caliber.id, v.id);
+          if (res && res.code === 200) {
+            addLog('success', `已删除子弹：${v.name}`);
+            await loadBulletLibrary();
+          } else {
+            addLog('error', res.message || '删除失败');
+          }
+        }
+      });
+
+      if (!inQueue) {
+        card.querySelector('.btn-add-queue').addEventListener('click', () => {
+          openAddModal(v.name, caliber.name);
+        });
+      }
+      dom.variantsGrid.appendChild(card);
+    });
+  }
+
+  // ═══════════════════════════════════════
+  // 百科 CRUD 弹窗逻辑
+  // ═══════════════════════════════════════
+
+  // --- 口径弹窗 ---
+  dom.btnAddCaliber.addEventListener('click', () => {
+    state.editCaliberId = null;
+    dom.caliberModalTitle.textContent = '添加口径';
+    dom.caliberModalName.value = '';
+    dom.caliberModalOverlay.classList.add('modal-overlay--active');
+  });
+
+  const closeCaliberModal = () => dom.caliberModalOverlay.classList.remove('modal-overlay--active');
+  dom.caliberModalClose.addEventListener('click', closeCaliberModal);
+  dom.caliberModalCancel.addEventListener('click', closeCaliberModal);
+
+  dom.caliberModalConfirm.addEventListener('click', async () => {
+    const name = dom.caliberModalName.value.trim();
+    if(!name) return addLog('warning', '口径名称不能为空');
+    let res;
+    if (state.editCaliberId) {
+      res = await window.bridge.updateCaliber(state.editCaliberId, name);
+    } else {
+      res = await window.bridge.addCaliber(name);
+    }
+    if (res && res.code === 200) {
+      addLog('success', state.editCaliberId ? '口径已更新' : '口径已添加');
+      closeCaliberModal();
+      await loadBulletLibrary();
+    } else {
+      addLog('error', res.message || '保存失败');
+    }
+  });
+
+  // --- 子弹变体弹窗 ---
+  dom.btnAddVariant.addEventListener('click', () => {
+    if(!state.currentCaliberId) return addLog('warning', '请先选择口径');
+    state.editVariantId = null;
+    dom.variantModalTitle.textContent = '添加子弹';
+    dom.variantModalName.value = '';
+    dom.variantModalTier.value = '1';
+    dom.variantModalOverlay.classList.add('modal-overlay--active');
+  });
+
+  const closeVariantModal = () => dom.variantModalOverlay.classList.remove('modal-overlay--active');
+  dom.variantModalClose.addEventListener('click', closeVariantModal);
+  dom.variantModalCancel.addEventListener('click', closeVariantModal);
+
+  dom.variantModalConfirm.addEventListener('click', async () => {
+    const name = dom.variantModalName.value.trim();
+    const tier = parseInt(dom.variantModalTier.value);
+    if(!name) return addLog('warning', '子弹名称不能为空');
+    if(!state.currentCaliberId) return addLog('error', '未选中口径');
+
+    let res;
+    if (state.editVariantId) {
+      res = await window.bridge.updateVariant(state.currentCaliberId, state.editVariantId, {name, tier});
+    } else {
+      res = await window.bridge.addVariant(state.currentCaliberId, name, tier);
+    }
+    if (res && res.code === 200) {
+      addLog('success', state.editVariantId ? '子弹已更新' : '子弹已添加');
+      closeVariantModal();
+      await loadBulletLibrary();
+    } else {
+      addLog('error', res.message || '保存失败');
+    }
+  });
+
+  // ═══════════════════════════════════════
+  // 添加子弹弹窗
+  // ═══════════════════════════════════════
+
+  function openAddModal(name, caliber) {
+    dom.modalName.value = name;
+    dom.modalCaliber.value = caliber;
+    dom.modalMaxPrice.value = 1000;
+    dom.modalOverlay.classList.add('modal-overlay--active');
+  }
+
+  function closeModal() {
+    dom.modalOverlay.classList.remove('modal-overlay--active');
+  }
+
+  dom.modalClose.addEventListener('click', closeModal);
+  dom.modalCancel.addEventListener('click', closeModal);
+  dom.modalOverlay.addEventListener('click', e => {
+    if (e.target === dom.modalOverlay) closeModal();
+  });
+
+  dom.modalConfirm.addEventListener('click', async () => {
+    const name    = dom.modalName.value;
+    const caliber = dom.modalCaliber.value;
+    const price   = parseInt(dom.modalMaxPrice.value) || 1000;
+    if (!window.bridge) return;
+    const res = await window.bridge.addTodayBullet(name, caliber, price);
+    if (res && res.code === 200) {
+      addLog('success', `✅ 已加入今日清单：${name}（预算 ${price.toLocaleString()}）`);
+      closeModal();
+      await refreshTodayBullets();
+      // 刷新百科视图中的按钮状态
+      if (state.bulletLibrary) {
+        const cal = state.bulletLibrary.calibers.find(c => c.name === caliber);
+        if (cal) renderVariants(cal);
+      }
+    } else {
+      addLog('warning', res ? res.message : '添加失败');
+    }
+  });
+
+  // ═══════════════════════════════════════
+  // 今日清单
+  // ═══════════════════════════════════════
+
+  async function refreshTodayBullets() {
+    if (!window.bridge) return;
+    const res = await window.bridge.getTodayBullets();
+    if (res && res.code === 200) {
+      state.todayBullets = res.data || [];
+      renderQueue();
+    }
+  }
+
+  function renderQueue() {
+    const list = state.todayBullets;
+    if (!list.length) {
+      dom.queueEmpty.style.display = '';
+      dom.queueList.innerHTML = '';
+      return;
+    }
+    dom.queueEmpty.style.display = 'none';
+    dom.queueList.innerHTML = '';
+    list.forEach((b, idx) => {
+      const statusClass = b.status === 'running' ? 'queue-card--running'
+        : b.status === 'done'  ? 'queue-card--done'
+        : b.status === 'empty' ? 'queue-card--empty' : '';
+      const statusEmoji = b.status === 'running' ? '🟢'
+        : b.status === 'done'  ? '✅'
+        : b.status === 'empty' ? '💀' : '🔵';
+      const card = document.createElement('div');
+      card.className = `queue-card ${statusClass}`;
+      card.style.animationDelay = `${idx * 50}ms`;
+      card.innerHTML = `
+        <span class="queue-card__status"></span>
+        <div class="queue-card__info">
+          <div class="queue-card__name">${statusEmoji} ${b.name}</div>
+          <div class="queue-card__meta">${b.caliber} · 预算 ${(b.max_price||0).toLocaleString()}</div>
+        </div>
+        <button class="queue-card__delete" data-id="${b.id}" title="删除">🗑</button>`;
+      card.querySelector('.queue-card__delete').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        card.classList.add('queue-card--removing');
+        setTimeout(async () => {
+          await window.bridge.removeTodayBullet(b.id);
+          await refreshTodayBullets();
+          addLog('info', `已移除：${b.name}`);
+        }, 300);
+      });
+      dom.queueList.appendChild(card);
+    });
+  }
+
+  // ═══════════════════════════════════════
+  // 机器人控制
+  // ═══════════════════════════════════════
+
+  dom.btnStart.addEventListener('click', async () => {
+    if (!window.bridge) return;
+    const res = await window.bridge.startBot();
+    if (res && res.code === 200) {
+      setRunningUI(true);
+    } else {
+      addLog('warning', res ? res.message : '启动失败');
+    }
+  });
+
+  dom.btnStop.addEventListener('click', async () => {
+    if (!window.bridge) return;
+    await window.bridge.stopBot();
+    setRunningUI(false);
+  });
+
+  dom.btnEmergency.addEventListener('click', async () => {
+    if (!window.bridge) return;
+    await window.bridge.stopBot();
+    setRunningUI(false);
+    addLog('error', '🚨 紧急退出！');
+  });
+
+  function setRunningUI(running) {
+    state.isRunning = running;
+    dom.btnStart.disabled = running;
+    dom.btnStop.disabled  = !running;
+    dom.statusIndicator.classList.toggle('active', running);
+    dom.statusText.textContent = running ? '扫货中...' : '待命中';
+    dom.monitorBadge.textContent = running ? 'ACTIVE' : 'STANDBY';
+    dom.monitorBadge.classList.toggle('active', running);
+    if (running) {
+      state.startTime = Date.now();
+      state.timerInterval = setInterval(updateTimer, 1000);
+    } else {
+      clearInterval(state.timerInterval);
+    }
+  }
+
+  function updateTimer() {
+    if (!state.startTime) return;
+    const s = Math.floor((Date.now() - state.startTime) / 1000);
+    const m = Math.floor(s / 60);
+    dom.elapsedTime.textContent = `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  }
+
+  // ═══════════════════════════════════════
+  // 配置保存
+  // ═══════════════════════════════════════
+
+  dom.btnSaveConfig.addEventListener('click', async () => {
+    if (!window.bridge) return;
+    const data = {
+      ui_coords: readCoordsFromUI(),
+      scheduled_time: dom.inputScheduledTime.value || '',
+      delays: {
+        sold_out_timeout: parseFloat(dom.inputSoldOutTimeout.value) || 30
+      }
+    };
+    const res = await window.bridge.saveConfig(data);
+    if (res && res.code === 200) {
+      dom.btnSaveConfig.classList.add('saved');
+      dom.btnSaveConfig.textContent = '✓ 已保存';
+      setTimeout(() => {
+        dom.btnSaveConfig.classList.remove('saved');
+        dom.btnSaveConfig.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> 保存坐标配置`;
+      }, 2000);
+      addLog('success', '配置已保存');
+    }
+  });
+
+  // ═══════════════════════════════════════
+  // 日志
+  // ═══════════════════════════════════════
+
+  function addLog(level, message) {
+    const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-entry--${level}`;
+    entry.innerHTML = `<span class="log-entry__time">${ts}</span>
+      <span class="log-entry__icon">${icons[level]||'•'}</span>
+      <span class="log-entry__msg">${message}</span>`;
+    dom.logStream.prepend(entry);
+    if (dom.logStream.children.length > 100) dom.logStream.lastChild.remove();
+  }
+
+  // ═══════════════════════════════════════
+  // 图表
+  // ═══════════════════════════════════════
+
+  function initChart() {
+    const ctx = document.getElementById('priceChart');
+    if (!ctx || typeof Chart === 'undefined') return;
     chart = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels: [],
-        datasets: [
-          {
-            label: '价格',
-            data: [],
-            borderColor: primaryColor,
-            backgroundColor: primaryBg,
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-          },
-          {
-            label: '最高价格线',
-            data: [],
-            borderColor: 'rgba(239, 83, 80, 0.5)',
-            borderWidth: 1,
-            borderDash: [5, 5],
-            pointRadius: 0,
-            fill: false,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 300 },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(30, 30, 35, 0.95)',
-            titleFont: { family: "'JetBrains Mono', monospace", size: 11 },
-            bodyFont: { family: "'JetBrains Mono', monospace", size: 12 },
-            padding: 10,
-            cornerRadius: 6,
-          },
-        },
-        scales: {
-          x: {
-            display: false,
-          },
-          y: {
-            grid: { color: gridColor },
-            ticks: {
-              font: { family: "'JetBrains Mono', monospace", size: 10 },
-              color: 'rgba(255,255,255,0.3)',
-              callback: (v) => (v / 1000).toFixed(0) + 'k',
-            },
-          },
-        },
-      },
+      data: { labels: [], datasets: [{ data: [], borderColor: '#4ade80', borderWidth: 1.5, fill: false, pointRadius: 0, tension: 0.3 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { display: false }, y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
     });
   }
 
-  function updateChart(price) {
-    if (!chart) return;
-
-    const label = new Date().toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-
-    chart.data.labels.push(label);
+  function pushChartPrice(price) {
+    if (!chart || price == null) return;
+    chart.data.labels.push('');
     chart.data.datasets[0].data.push(price);
-    chart.data.datasets[1].data.push(state.config.maxPrice);
-
-    // 最多保留 30 个数据点
-    if (chart.data.labels.length > 30) {
-      chart.data.labels.shift();
-      chart.data.datasets[0].data.shift();
-      chart.data.datasets[1].data.shift();
-    }
-
+    if (chart.data.labels.length > 50) { chart.data.labels.shift(); chart.data.datasets[0].data.shift(); }
     chart.update('none');
   }
 
+  // ═══════════════════════════════════════
+  // 后端事件监听
+  // ═══════════════════════════════════════
 
-  // ===== 事件绑定 =====
-  dom.btnStart.addEventListener('click', startMonitoring);
-  dom.btnStop.addEventListener('click', stopMonitoring);
-  dom.btnEmergency.addEventListener('click', emergencyExit);
-
-  dom.btnClearLogs.addEventListener('click', () => {
-    dom.logStream.innerHTML = '';
-    addLog('info', '日志已清除');
+  window.addEventListener('bot-log', e => {
+    const d = e.detail;
+    addLog(d.level.toLowerCase(), d.message);
   });
 
-  dom.toggleDebug.addEventListener('change', (e) => {
-    state.debugMode = e.target.checked;
-    addLog('info', `调试模式: ${state.debugMode ? '开启' : '关闭'}`);
-  });
-
-  // 配置变更时实时同步
-  dom.inputMaxPrice.addEventListener('change', syncConfigFromInputs);
-  dom.inputBuyAmount.addEventListener('change', syncConfigFromInputs);
-  dom.inputScheduledTime.addEventListener('change', () => {
-    syncConfigFromInputs();
-    addLog('info', `定时启动更新: ${state.config.scheduledTime || '未设置'}`);
-  });
-  dom.inputRunDuration.addEventListener('change', syncConfigFromInputs);
-
-  // 保存配置按钮
-  if (dom.btnSaveConfig) {
-    dom.btnSaveConfig.addEventListener('click', saveConfigToBackend);
-  }
-
-  // 设置按钮：快速滚动到高级配置区域
-  if (dom.btnSettings) {
-    dom.btnSettings.addEventListener('click', () => {
-      const panelBody = document.querySelector('.panel--control .panel__body');
-      if (panelBody) {
-        panelBody.scrollTo({
-          top: panelBody.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-      addLog('info', '已定位到高级配置面板');
-    });
-  }
-
-
-
-  // ===== Python 后端通信事件 =====
-  window.addEventListener('bot-log', (e) => {
-    const data = e.detail;
-    const mapLevel = { 'INFO': 'info', 'SUCCESS': 'success', 'WARNING': 'warning', 'ERROR': 'error' };
-    addLog(mapLevel[data.level] || 'info', data.message);
-  });
-
-  window.addEventListener('bot-status', (e) => {
-    const data = e.detail;
-    
-    // 更新 OCR 预览图
-    if (data.ocr_preview) {
-        const ocrCanvas = document.getElementById('ocrCanvas');
-        if (ocrCanvas) {
-            ocrCanvas.innerHTML = `<img src="data:image/jpeg;base64,${data.ocr_preview}" style="width: 100%; height: 100%; object-fit: contain; border-radius: var(--radius-sm);">`;
-        }
+  window.addEventListener('bot-status', e => {
+    const d = e.detail;
+    if (d.last_price != null) {
+      state.ocrHitCount++;
+      dom.ocrCount.textContent = state.ocrHitCount;
+      dom.currentPrice.textContent = d.last_price.toLocaleString();
+      pushChartPrice(d.last_price);
     }
-
-    // 无论价格是否变动，只要识别到有效价格就记录统计
-    if (data.last_price !== null) {
-        state.last_price = data.last_price;
-        state.prices.push(data.last_price);
-        dom.currentPrice.textContent = data.last_price.toLocaleString();
-        
-        if (state.prices.length > 1) {
-            const prev = state.prices[state.prices.length - 2];
-            const diff = data.last_price - prev;
-            if (diff > 0) {
-              dom.priceTrend.textContent = `+${diff.toLocaleString()}`;
-              dom.priceTrend.style.color = 'var(--clr-danger-light)';
-            } else if (diff < 0) {
-              dom.priceTrend.textContent = diff.toLocaleString();
-              dom.priceTrend.style.color = 'var(--clr-success)';
-            } else {
-              dom.priceTrend.textContent = '0';
-              dom.priceTrend.style.color = 'var(--clr-text-muted)';
-            }
-        }
-        
-        dom.checkCount.textContent = state.prices.length;
-        updateChart(data.last_price);
-        updateStats();
-
-        // 价格更新脉冲动画
-        const priceCard = dom.currentPrice.closest('.metric-card');
-        if (priceCard) {
-          priceCard.classList.remove('metric-card--pulse');
-          // 触发 reflow 以重启动画
-          void priceCard.offsetWidth;
-          priceCard.classList.add('metric-card--pulse');
-        }
+    if (d.total_purchases != null) dom.boughtCount.textContent = d.total_purchases.toLocaleString();
+    if (d.current_bullet) {
+      dom.currentBulletName.textContent = d.current_bullet;
     }
-    if (data.total_purchases !== undefined) {
-        state.boughtCount = data.total_purchases;
-        dom.boughtCount.textContent = state.boughtCount;
-        if (state.boughtCount >= state.totalTarget && state.isRunning) {
-            stopMonitoring();
-        }
+    if (d.max_price != null) {
+      dom.currentBulletBudget.textContent = d.max_price.toLocaleString();
     }
-    if (data.is_running === true && !state.isRunning) {
-        state.isRunning = true;
-        dom.btnStart.disabled = true;
-        dom.btnStop.disabled = false;
-        dom.btnStart.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> 监控中...`;
-        addLog('warning', '[后台触发] 后端定时任务已启动监控！');
-    }
-    
-    if (data.is_running === false && state.isRunning) {
-        stopMonitoring();
+    if (d.is_running === true && !state.isRunning)  setRunningUI(true);
+    if (d.is_running === false && state.isRunning) setRunningUI(false);
+    // 刷新任务卡片状态
+    if (d.bullet_statuses) {
+      state.todayBullets.forEach(b => {
+        if (d.bullet_statuses[b.id]) b.status = d.bullet_statuses[b.id];
+      });
+      renderQueue();
     }
   });
 
-  // ===== 初始化 =====
+  window.addEventListener('coord-grab', e => {
+    state.lastGrabbedCoord = e.detail;
+    addLog('success', `[F8] 坐标已抓取: [${e.detail.rx}, ${e.detail.ry}]，点击坐标项旁的「应用」按钮使用`);
+  });
+
+  // ═══════════════════════════════════════
+  // 系统时钟
+  // ═══════════════════════════════════════
+
+  setInterval(() => {
+    dom.systemTime.textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  }, 1000);
+
+  // ═══════════════════════════════════════
+  // 初始化
+  // ═══════════════════════════════════════
+
   async function init() {
     if (window.bridge) {
       await window.bridge.init();
-
-      // 从后端加载配置并应用到 UI
-      try {
-        const configRes = await window.bridge.getConfig();
-        if (configRes && configRes.code === 200) {
-          applyConfigToUI(configRes.data);
-        } else {
-          addLog('warning', '加载后端配置失败: ' + (configRes?.message || '未知错误'));
+      // 加载配置
+      const cfgRes = await window.bridge.getConfig();
+      if (cfgRes && cfgRes.code === 200) {
+        const cfg = cfgRes.data;
+        loadCoordsToUI(cfg.ui_coords);
+        if (cfg.scheduled_time) dom.inputScheduledTime.value = cfg.scheduled_time;
+        if (cfg.delays && cfg.delays.sold_out_timeout) {
+          dom.inputSoldOutTimeout.value = cfg.delays.sold_out_timeout;
         }
-      } catch (e) {
-        addLog('warning', '无法连接后端加载配置: ' + e.message);
       }
+      // 加载子弹百科
+      await loadBulletLibrary();
+      // 加载今日清单
+      await refreshTodayBullets();
     }
-
-    syncConfigFromInputs();
     initChart();
-
-    // 更新底部状态栏
-    const ocrStatusEl = document.getElementById('ocrStatus');
-    const configStatusEl = document.getElementById('configStatus');
-    const gameWindowDot = document.getElementById('gameWindowDot');
-    const gameWindowStatus = document.getElementById('gameWindowStatus');
-
-    if (window.bridge) {
-      gameWindowDot.classList.add('bottom-bar__dot--active');
-      gameWindowStatus.textContent = '游戏窗口: 已连接';
-      if (ocrStatusEl) ocrStatusEl.textContent = 'Tesseract OCR: 就绪';
-      if (configStatusEl) configStatusEl.textContent = '系统默认配置: 已加载';
-    } else {
-      gameWindowStatus.textContent = '游戏窗口: 未连接';
-      if (ocrStatusEl) ocrStatusEl.textContent = 'Tesseract OCR: 离线';
-      if (configStatusEl) configStatusEl.textContent = '系统默认配置: 前端演示模式';
-    }
-
-    addLog('info', '控制面板已就绪');
+    addLog('info', '🎮 系统就绪，等待指令...');
   }
 
-  init();
+  // 延迟初始化，等待 pywebview bridge
+  if (window.bridge) {
+    init();
+  } else {
+    window.addEventListener('pywebviewready', init);
+  }
+
 })();
