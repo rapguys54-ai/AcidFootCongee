@@ -158,23 +158,89 @@
     return coords;
   }
 
+  let waitingGrabKey = null;
+  let grabStep = 0; // 0: off, 1: point1, 2: point2
+
   // F8 抓取后一键应用到指定坐标
   document.querySelectorAll('.btn-grab').forEach(btn => {
     btn.addEventListener('click', () => {
-      if (!state.lastGrabbedCoord) {
-        addLog('warning', '请先在游戏中按 F8 抓取坐标');
-        return;
-      }
       const key = btn.dataset.key;
-      const ex = document.getElementById(`coord_${key}_x`);
-      const ey = document.getElementById(`coord_${key}_y`);
-      if (ex && ey) {
-        ex.value = state.lastGrabbedCoord.rx;
-        ey.value = state.lastGrabbedCoord.ry;
-        addLog('success', `[坐标] 已应用到「${key}」: [${state.lastGrabbedCoord.rx}, ${state.lastGrabbedCoord.ry}]`);
+      waitingGrabKey = key;
+      const isRegion = !!document.getElementById(`coord_${key}_x1`);
+      
+      if (isRegion) {
+        grabStep = 1;
+        addLog('info', `🎯 [范围抓取] 步骤 1/2：请将鼠标移动到左上角，按下 F8 键`);
+        btn.textContent = '⏳ 左上角 (F8)...';
+      } else {
+        grabStep = 1;
+        addLog('info', `🎯 [单点抓取] 请将鼠标移动到目标位置，按下 F8 键`);
+        btn.textContent = '⏳ 等待 F8...';
       }
+      
+      // 按钮状态反馈
+      document.querySelectorAll('.btn-grab').forEach(b => {
+        b.classList.remove('btn-grab--active');
+        if(b !== btn) {
+          b.textContent = '🎮 抓取 (F8)';
+          b.style.opacity = '0.5';
+        }
+      });
+      btn.classList.add('btn-grab--active');
+      btn.style.opacity = '1';
     });
   });
+
+  window.addEventListener('coord-grab', e => {
+    state.lastGrabbedCoord = e.detail;
+    
+    if (waitingGrabKey) {
+      const key = waitingGrabKey;
+      const ex = document.getElementById(`coord_${key}_x`);
+      const ey = document.getElementById(`coord_${key}_y`);
+      
+      const ex1 = document.getElementById(`coord_${key}_x1`);
+      const ey1 = document.getElementById(`coord_${key}_y1`);
+      const ex2 = document.getElementById(`coord_${key}_x2`);
+      const ey2 = document.getElementById(`coord_${key}_y2`);
+      
+      const btn = document.querySelector(`.btn-grab[data-key="${key}"]`);
+
+      if (ex && ey) {
+        // 单点抓取
+        ex.value = e.detail.rx;
+        ey.value = e.detail.ry;
+        addLog('success', `✅ 已自动填入单点坐标「${key}」: [${e.detail.rx}, ${e.detail.ry}]`);
+        resetGrabState();
+      } else if (ex1 && ey1 && ex2 && ey2) {
+        // 范围抓取
+        if (grabStep === 1) {
+          ex1.value = e.detail.rx;
+          ey1.value = e.detail.ry;
+          grabStep = 2;
+          addLog('info', `🎯 [范围抓取] 步骤 2/2：请移动到右下角，再次按下 F8 键`);
+          if(btn) btn.textContent = '⏳ 右下角 (F8)...';
+        } else if (grabStep === 2) {
+          ex2.value = e.detail.rx;
+          ey2.value = e.detail.ry;
+          addLog('success', `✅ 已自动填入范围坐标「${key}」`);
+          resetGrabState();
+        }
+      }
+    } else {
+      addLog('warning', `[F8] 抓取了坐标: [${e.detail.rx}, ${e.detail.ry}]，但你没有先点击任意「抓取」按钮！`);
+    }
+  });
+
+  function resetGrabState() {
+    waitingGrabKey = null;
+    grabStep = 0;
+    document.querySelectorAll('.btn-grab').forEach(b => {
+      b.classList.remove('btn-grab--active');
+      b.textContent = '🎮 抓取 (F8)';
+      b.style.opacity = '1';
+    });
+  }
 
   // ═══════════════════════════════════════
   // 子弹百科
@@ -621,10 +687,6 @@
     }
   });
 
-  window.addEventListener('coord-grab', e => {
-    state.lastGrabbedCoord = e.detail;
-    addLog('success', `[F8] 坐标已抓取: [${e.detail.rx}, ${e.detail.ry}]，点击坐标项旁的「应用」按钮使用`);
-  });
 
   // ═══════════════════════════════════════
   // 系统时钟
