@@ -40,6 +40,8 @@ window.bridge = {
   addVariant(caliberId, name, tier)             { return this._call('add_variant', caliberId, name, tier); },
   updateVariant(caliberId, variantId, fields)   { return this._call('update_variant', caliberId, variantId, fields); },
   removeVariant(caliberId, variantId)           { return this._call('remove_variant', caliberId, variantId); },
+  
+  testOcr(coords)                               { return this._call('test_ocr', coords); },
 
   // 今日清单
   getTodayBullets()                    { return this._call('get_today_bullets'); },

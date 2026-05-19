@@ -1193,8 +1193,18 @@ input[type="number"] {
 .btn-grab:hover {
   background: oklch(0.60 0.18 160 / 0.25);
 }
+.coord-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
 .coord-inputs--4 {
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+}
+select.config-field__input option {
+  background-color: var(--clr-surface-elevated);
+  color: var(--clr-text);
 }
 
 /* ═══════════════════════════════════════

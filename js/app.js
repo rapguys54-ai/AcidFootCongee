@@ -613,6 +613,23 @@
     }
   });
 
+  // 🧪 测试 OCR
+  const btnTestOcr = document.getElementById('btnTestOcr');
+  if (btnTestOcr) {
+    btnTestOcr.addEventListener('click', async () => {
+      if (!window.bridge) return;
+      btnTestOcr.textContent = '测试中...';
+      const coords = readCoordsFromUI();
+      const res = await window.bridge.testOcr(coords);
+      btnTestOcr.textContent = '🧪 测试 OCR';
+      if (res && res.code === 200) {
+        addLog('success', `[OCR 测试] 识别结果: ${res.data.price}`);
+      } else {
+        addLog('error', `[OCR 测试] 失败: ${res?.msg || '未知错误'}`);
+      }
+    });
+  }
+
   // ═══════════════════════════════════════
   // 日志
   // ═══════════════════════════════════════
@@ -684,6 +701,13 @@
         if (d.bullet_statuses[b.id]) b.status = d.bullet_statuses[b.id];
       });
       renderQueue();
+    }
+    // OCR 预览图
+    if (d.ocr_preview) {
+      const canvas = document.getElementById('ocrCanvas');
+      if (canvas) {
+        canvas.innerHTML = `<img src="data:image/jpeg;base64,${d.ocr_preview}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;" />`;
+      }
     }
   });
 
