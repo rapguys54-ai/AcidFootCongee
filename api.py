@@ -31,13 +31,23 @@ class BackendAPI:
         # 配置路径
         if getattr(sys, 'frozen', False):
             base_dir = os.path.dirname(sys.executable)
+            meipass  = sys._MEIPASS
+            
+            # 子弹数据库路径：优先使用 exe 同级目录的，如果没有则从打包文件里复制一份
+            self.bullet_data_path = os.path.abspath(os.path.join(base_dir, "bullet_data.json"))
+            if not os.path.exists(self.bullet_data_path):
+                import shutil
+                src = os.path.join(meipass, "bullet_data.json")
+                if os.path.exists(src):
+                    try:
+                        shutil.copy(src, self.bullet_data_path)
+                    except shutil.SameFileError:
+                        pass
         else:
             base_dir = os.path.dirname(__file__)
+            self.bullet_data_path = os.path.abspath(os.path.join(base_dir, "bullet_data.json"))
+            
         self.config_path = os.path.abspath(os.path.join(base_dir, "keys.json"))
-
-        # 子弹数据库路径
-        self.bullet_data_path = os.path.abspath(
-            os.path.join(base_dir, "bullet_data.json"))
 
         self.status = {
             "is_running":     False,

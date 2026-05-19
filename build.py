@@ -98,6 +98,8 @@ a = Analysis(
     datas=[
         # 前端资源打包到 web/ 目录
         ('web', 'web'),
+        # 初始子弹数据
+        ('bullet_data.json', '.'),
     ],
     hiddenimports=[
         # pywebview 依赖（Windows 后端）
@@ -219,6 +221,14 @@ def copy_runtime_files():
         print(f"✅ keys.json 已复制到输出目录")
     else:
         print("⚠️  keys.json 不存在，跳过")
+        
+    # 复制 bullet_data.json
+    bullet_src = Path("bullet_data.json")
+    if bullet_src.exists():
+        shutil.copy2(bullet_src, DIST_DIR / "bullet_data.json")
+        print(f"✅ bullet_data.json 已复制到输出目录")
+    else:
+        print("⚠️  bullet_data.json 不存在，跳过")
     
     # 复制 Tesseract 目录（如果存在）
     if TESSERACT_DIR.exists():

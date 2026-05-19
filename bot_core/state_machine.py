@@ -144,51 +144,40 @@ class BotStateMachine:
             if price is not None and price <= max_price:
                 # ── 价格满足：极速购买 ──
                 self.sold_out_timer = None  # 重置卖光计时
-                self._click_rel(auto, pyautogui, coords,
-                                self.coords.get('price_button', [0.845, 0.795]))
+                
+                # 设置数量为200 (点击滑块最右侧)
+                self._click_rel(auto, pyautogui, coords, self.coords.get('slider_max', [0.932, 0.725]))
+                time.sleep(0.01) # 极短延迟
+                
+                # 点击购买
+                self._click_rel(auto, pyautogui, coords, self.coords.get('price_button', [0.845, 0.795]))
+                
                 self.total_purchased += 200
                 bought_this_round   += 200
-                self.push_log("SUCCESS",
-                    f"⚡ [{name}] 成功购买 200 发！本轮累计: {bought_this_round}，总计: {self.total_purchased}")
+                self.push_log("SUCCESS", f"⚡ [{name}] 成功购买 200 发！本轮累计: {bought_this_round}，总计: {self.total_purchased}")
                 self.push_status({"total_purchases": self.total_purchased,
                                    "current_bullet": name,
                                    "last_price": price})
-
-                # 极速退出再进入（ESC 后仍在搜索结果页，只需重新点卡片）
-                kb.press('esc')
-                time.sleep(0.05)
-                self._click_rel(auto, pyautogui, coords,
-                                self.coords.get('first_card', [0.35, 0.22]))
-                time.sleep(self.delay_card)
-                self._click_rel(auto, pyautogui, coords,
-                                self.coords.get('slider_max', [0.932, 0.725]))
 
             else:
                 # ── 价格过高或识别失败：检测是否卖光 ──
                 if self.sold_out_timer is None:
                     self.sold_out_timer = time.time()
-                    self.push_log("INFO",
-                        f"[{name}] 价格 {price or '?'} > 预算 {max_price}，"
-                        f"开始 {self.sold_out_sec}s 卖光检测窗口...")
-
-                # 扫描弹窗 OCR
-                popup_text = self._read_popup(ocr, auto, coords)
-                if popup_text and any(kw in popup_text for kw in POPUP_KEYWORDS):
-                    self.push_log("INFO", f"[{name}] 检测到补货弹窗，库存仍有！继续守候...")
-                    self.sold_out_timer = time.time()  # 重置计时器
-                    time.sleep(self.delay_ocr)
-                    continue
+                    self.push_log("INFO", f"[{name}] 价格不满足(OCR={price} 预算={max_price})，开始持续刷新... (检测周期 {self.sold_out_sec}s)")
 
                 elapsed = time.time() - self.sold_out_timer
                 if elapsed >= self.sold_out_sec:
-                    self.push_log("WARNING",
-                        f"💀 [{name}] {self.sold_out_sec}s 内无补货迹象，判定此波已卖光！切换下一款。")
+                    self.push_log("WARNING", f"💀 [{name}] {self.sold_out_sec}s 内无补货迹象，判定此波已卖光！切换下一款。")
                     self._update_bullet_status(bullet['id'], 'empty')
                     break
 
-                time.sleep(self.delay_ocr)
+            # 无论是否买到，都极速退出再重新进入，实现刷新
+            kb.press('esc')
+            time.sleep(0.05)
+            self._click_rel(auto, pyautogui, coords, self.coords.get('first_card', [0.35, 0.22]))
+            time.sleep(self.delay_card)
 
-        # 退出当前子弹详情页
+        # 切换下一款时退出当前搜索结果页
         kb.press('esc')
         time.sleep(0.1)
 
