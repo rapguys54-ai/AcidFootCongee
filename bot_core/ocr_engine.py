@@ -122,3 +122,23 @@ class OcrEngine:
                     
         # 全部策略失败
         return {"price": None, "preview": preview_b64}
+
+    def get_text(self, region_tuple) -> str:
+        """识别区域内的任意文字（用于弹窗检测），返回字符串"""
+        img = self.take_screenshot(region_tuple)
+        if img is None:
+            return ""
+        try:
+            # 放大 + 灰度处理
+            scaled = cv2.resize(img, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+            gray   = cv2.cvtColor(scaled, cv2.COLOR_BGR2GRAY)
+            _, thr = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+            text   = pytesseract.image_to_string(
+                thr, lang='chi_sim+eng',
+                config='--psm 6'
+            )
+            return text.strip()
+        except Exception as e:
+            logger.debug(f"get_text 失败: {e}")
+            return ""
+

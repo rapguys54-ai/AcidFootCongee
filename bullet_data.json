@@ -1,0 +1,175 @@
+{
+  "calibers": [
+    {
+      "id": "50ae", "name": ".50 AE",
+      "variants": [
+        {"id": "50ae_hp",  "name": ".50 AE HP",  "tier": 2},
+        {"id": "50ae_ap",  "name": ".50 AE AP",  "tier": 5},
+        {"id": "50ae_jhp", "name": ".50 AE JHP", "tier": 3},
+        {"id": "50ae_fmj", "name": ".50 AE FMJ", "tier": 4}
+      ]
+    },
+    {
+      "id": "9x19", "name": "9x19mm",
+      "variants": [
+        {"id": "9x19_pso",   "name": "9x19mm PSO",   "tier": 1},
+        {"id": "9x19_pst",   "name": "9x19mm Pst",    "tier": 2},
+        {"id": "9x19_ap63",  "name": "9x19mm AP6.3",  "tier": 3},
+        {"id": "9x19_rip",   "name": "9x19mm RIP",    "tier": 3},
+        {"id": "9x19_pbp",   "name": "9x19mm PBP",    "tier": 4}
+      ]
+    },
+    {
+      "id": "9x39", "name": "9x39mm",
+      "variants": [
+        {"id": "9x39_sp5", "name": "9x39mm SP5", "tier": 3},
+        {"id": "9x39_sp6", "name": "9x39mm SP6", "tier": 4},
+        {"id": "9x39_bp",  "name": "9x39mm BP",  "tier": 5}
+      ]
+    },
+    {
+      "id": "545x39", "name": "5.45x39mm",
+      "variants": [
+        {"id": "545x39_bs",     "name": "5.45x39mm BS",      "tier": 5},
+        {"id": "545x39_ps",     "name": "5.45x39mm PS",      "tier": 3},
+        {"id": "545x39_bt",     "name": "5.45x39mm BT",      "tier": 4},
+        {"id": "545x39_prs",    "name": "5.45x39mm PRS",     "tier": 1},
+        {"id": "545x39_bs_stp", "name": "5.45x39mm BS ST+",  "tier": 5},
+        {"id": "545x39_bs_st",  "name": "5.45x39mm BS ST",   "tier": 4},
+        {"id": "545x39_t",      "name": "5.45x39mm T",       "tier": 2}
+      ]
+    },
+    {
+      "id": "556x45", "name": "5.56x45mm",
+      "variants": [
+        {"id": "556x45_m855a1",     "name": "5.56x45mm M855A1",       "tier": 4},
+        {"id": "556x45_m995",       "name": "5.56x45mm M995",         "tier": 5},
+        {"id": "556x45_m855",       "name": "5.56x45mm M855",         "tier": 3},
+        {"id": "556x45_rrlp",       "name": "5.56x45mm RRLP",         "tier": 1},
+        {"id": "556x45_fmj",        "name": "5.56x45mm FMJ",          "tier": 2},
+        {"id": "556x45_m855a1_apcp","name": "5.56x45mm M855A1 APC+",  "tier": 4},
+        {"id": "556x45_m855_apc",   "name": "5.56x45mm M855 APC",     "tier": 3}
+      ]
+    },
+    {
+      "id": "46x30", "name": "4.6x30mm",
+      "variants": [
+        {"id": "46x30_sub_sx", "name": "4.6x30mm Subsonic SX", "tier": 3},
+        {"id": "46x30_fmj_sx", "name": "4.6x30mm FMJ SX",     "tier": 4},
+        {"id": "46x30_ap_sx",  "name": "4.6x30mm AP SX",       "tier": 5}
+      ]
+    },
+    {
+      "id": "57x28", "name": "5.7x28mm",
+      "variants": [
+        {"id": "57x28_ss197sr", "name": "5.7x28mm SS197SR", "tier": 2},
+        {"id": "57x28_ss190",   "name": "5.7x28mm SS190",   "tier": 5},
+        {"id": "57x28_ss198lf", "name": "5.7x28mm SS198LF", "tier": 1},
+        {"id": "57x28_r37f",    "name": "5.7x28mm R37.F",   "tier": 3},
+        {"id": "57x28_ss193",   "name": "5.7x28mm SS193",   "tier": 4},
+        {"id": "57x28_l191",    "name": "5.7x28mm L191",    "tier": 3}
+      ]
+    },
+    {
+      "id": "68x51", "name": "6.8x51mm",
+      "variants": [
+        {"id": "68x51_hybrid", "name": "6.8x51mm Hybrid", "tier": 5},
+        {"id": "68x51_fmj",   "name": "6.8x51mm FMJ",    "tier": 4}
+      ]
+    },
+    {
+      "id": "127x55", "name": "12.7x55mm",
+      "variants": [
+        {"id": "127x55_ps12",   "name": "12.7x55mm PS12",       "tier": 4},
+        {"id": "127x55_pd12",   "name": "12.7x55mm PD12双头弹", "tier": 4},
+        {"id": "127x55_ps12a",  "name": "12.7x55mm PS12A",      "tier": 3},
+        {"id": "127x55_ps12b",  "name": "12.7x55mm PS12B",      "tier": 5}
+      ]
+    },
+    {
+      "id": "762x39", "name": "7.62x39mm",
+      "variants": [
+        {"id": "762x39_bp",   "name": "7.62x39mm BP",   "tier": 4},
+        {"id": "762x39_ps",   "name": "7.62x39mm PS",   "tier": 3},
+        {"id": "762x39_ap",   "name": "7.62x39mm AP",   "tier": 5},
+        {"id": "762x39_lp",   "name": "7.62x39mm LP",   "tier": 1},
+        {"id": "762x39_t45m", "name": "7.62x39mm T45M", "tier": 2}
+      ]
+    },
+    {
+      "id": "762x51", "name": "7.62x51mm",
+      "variants": [
+        {"id": "762x51_m62",          "name": "7.62x51mm M62",           "tier": 5},
+        {"id": "762x51_bpz",          "name": "7.62x51mm BPZ",           "tier": 3},
+        {"id": "762x51_m80",          "name": "7.62x51mm M80",           "tier": 4},
+        {"id": "762x51_ultra_nosler", "name": "7.62x51mm Ultra Nosler",  "tier": 2}
+      ]
+    },
+    {
+      "id": "762x54r", "name": "7.62x54R",
+      "variants": [
+        {"id": "762x54r_t46m", "name": "7.62x54R T46M", "tier": 3},
+        {"id": "762x54r_bt",   "name": "7.62x54R BT",   "tier": 5},
+        {"id": "762x54r_lps",  "name": "7.62x54R LPS",  "tier": 4}
+      ]
+    },
+    {
+      "id": "12ga", "name": "12 Gauge",
+      "variants": [
+        {"id": "12ga_85buck",     "name": "12 Gauge 8.5毫米鹿弹",  "tier": 3},
+        {"id": "12ga_slug_gt",    "name": "12 Gauge独头 GT",        "tier": 2},
+        {"id": "12ga_slug_ftx",   "name": "12 Gauge独头 FTX",       "tier": 3},
+        {"id": "12ga_flechette",  "name": "12 Gauge 箭形弹",        "tier": 3},
+        {"id": "12ga_slug_rip",   "name": "12 Gauge独头 RIP",       "tier": 2},
+        {"id": "12ga_slug_ap20",  "name": "12 Gauge独头 AP-20",     "tier": 4},
+        {"id": "12ga_dragon",     "name": "12 Gauge 龙息弹",        "tier": 4},
+        {"id": "12ga_7buck",      "name": "12 Gauge 7毫米鹿弹",     "tier": 1}
+      ]
+    },
+    {
+      "id": "45acp", "name": ".45 ACP",
+      "variants": [
+        {"id": "45acp_fmj", "name": ".45 ACP FMJ", "tier": 3},
+        {"id": "45acp_rip", "name": ".45 ACP RIP", "tier": 3},
+        {"id": "45acp_ap",  "name": ".45 ACP AP",  "tier": 4},
+        {"id": "45acp_hs",  "name": ".45 ACP HS",  "tier": 1},
+        {"id": "45acp_jhp", "name": ".45 ACP JHP", "tier": 2}
+      ]
+    },
+    {
+      "id": "357mag", "name": ".357 Magnum",
+      "variants": [
+        {"id": "357mag_rat",  "name": ".357 Magnum 9号霰射\"鼠弹\"", "tier": 3},
+        {"id": "357mag_hp",   "name": ".357 Magnum HP",             "tier": 2},
+        {"id": "357mag_fmj",  "name": ".357 Magnum FMJ",            "tier": 4},
+        {"id": "357mag_jhp",  "name": ".357 Magnum JHP",            "tier": 3}
+      ]
+    },
+    {
+      "id": "arrows", "name": "箭矢",
+      "variants": [
+        {"id": "arrow_fiberglass",  "name": "玻纤柳叶箭矢",     "tier": 3},
+        {"id": "arrow_bone",        "name": "碳纤维刺骨箭矢",   "tier": 4},
+        {"id": "arrow_ap",          "name": "碳纤维穿甲箭矢",   "tier": 5},
+        {"id": "arrow_scatter",     "name": "碳纤维散射箭矢",   "tier": 5}
+      ]
+    },
+    {
+      "id": "4570govt", "name": "45-70 Govt",
+      "variants": [
+        {"id": "4570_ftx", "name": "45-70 Govt FTX", "tier": 5},
+        {"id": "4570_rn",  "name": "45-70 Govt RN",  "tier": 3},
+        {"id": "4570_fmj", "name": "45-70 Govt FMJ", "tier": 4}
+      ]
+    },
+    {
+      "id": "58x42", "name": "5.8x42mm",
+      "variants": [
+        {"id": "58x42_dvc12", "name": "5.8x42mm DVC12", "tier": 5},
+        {"id": "58x42_dvp88", "name": "5.8x42mm DVP88", "tier": 3},
+        {"id": "58x42_dbp10", "name": "5.8x42mm DBP10", "tier": 4},
+        {"id": "58x42_dbp87", "name": "5.8x42mm DBP87", "tier": 2}
+      ]
+    }
+  ]
+}

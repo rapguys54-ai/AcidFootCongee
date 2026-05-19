@@ -1,55 +1,50 @@
 {
-    "keys": [
+    "ui_coords": {
+        "search_box": [
+            0.13,
+            0.165
+        ],
+        "first_card": [
+            0.35,
+            0.22
+        ],
+        "slider_max": [
+            0.932,
+            0.725
+        ],
+        "price_region": [
+            0.78,
+            0.752,
+            0.95,
+            0.785
+        ],
+        "price_button": [
+            0.845,
+            0.795
+        ],
+        "popup_region": [
+            0.3,
+            0.4,
+            0.7,
+            0.65
+        ]
+    },
+    "today_bullets": [
         {
-            "max_price": 50000,
-            "position": [
-                0.3517,
-                0.2678
-            ],
-            "detail_price_region": {
-                "top_left": [
-                    0.7795,
-                    0.7600
-                ],
-                "bottom_right": [
-                    0.8862,
-                    0.8200
-                ]
-            },
-            "buy_button_position": [
-                0.825,
-                0.85
-            ],
-            "confirm_button_position": [
-                0.55,
-                0.65
-            ],
-            "buyAmount": 3,
-            "scheduledTime": "20:58",
-            "runDuration": 0.2
+            "id": "bde44576",
+            "name": "6.8x51mm FMJ",
+            "caliber": "6.8x51mm",
+            "max_price": 1000,
+            "enabled": true,
+            "status": "pending"
         }
     ],
     "delays": {
-        "window_focus": {
-            "value": 0
-        },
-        "mouse_move": {
-            "value": 0
-        },
-        "mouse_down": {
-            "value": 0
-        },
-        "buy_button": {
-            "value": 0
-        },
-        "buy_complete": {
-            "value": 0
-        },
-        "esc_key": {
-            "value": 0
-        },
-        "loop_interval": {
-            "value": 0
-        }
-    }
+        "after_search_input": 0.3,
+        "after_click_card": 0.4,
+        "ocr_interval": 0.05,
+        "sold_out_timeout": 30
+    },
+    "scheduled_time": "",
+    "run_duration": 240
 }
