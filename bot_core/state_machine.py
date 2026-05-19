@@ -172,13 +172,13 @@ class BotStateMachine:
                     break
 
             # 无论是否买到，都极速退出再重新进入，实现刷新
-            kb.press('esc')
+            kb.send('esc')
             time.sleep(0.05)
             self._click_rel(auto, pyautogui, coords, self.coords.get('first_card', [0.35, 0.22]))
             time.sleep(self.delay_card)
 
         # 切换下一款时退出当前搜索结果页
-        kb.press('esc')
+        kb.send('esc')
         time.sleep(0.1)
 
     # ──────────────────────────────────────────

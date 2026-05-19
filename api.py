@@ -110,6 +110,48 @@ class BackendAPI:
     # 配置 API
     # ════════════════════════════════════════
 
+    def test_ocr(self, coords_data: dict):
+        """测试价格 OCR 区域"""
+        try:
+            from bot_core.ocr_engine import OcrEngine
+            import win32gui
+            
+            hwnd = win32gui.FindWindow("UnrealWindow", "DeltaForce  ")
+            if not hwnd:
+                hwnd = win32gui.FindWindow("UnrealWindow", "DeltaForce")
+            if not hwnd:
+                return {"code": 500, "msg": "未找到游戏窗口，请先打开游戏"}
+                
+            left, top, right, bottom = win32gui.GetClientRect(hwnd)
+            left_pt = win32gui.ClientToScreen(hwnd, (left, top))
+            right_pt = win32gui.ClientToScreen(hwnd, (right, bottom))
+            
+            offset_x = left_pt[0]
+            offset_y = left_pt[1]
+            width = right_pt[0] - left_pt[0]
+            height = right_pt[1] - left_pt[1]
+            
+            pr = coords_data.get('price_region')
+            if not pr or len(pr) < 4:
+                return {"code": 500, "msg": "价格区域坐标不完整，请先抓取范围"}
+                
+            x1 = offset_x + int(width * pr[0])
+            y1 = offset_y + int(height * pr[1])
+            w = int(width * (pr[2] - pr[0]))
+            h = int(height * (pr[3] - pr[1]))
+            
+            ocr = OcrEngine()
+            result = ocr.get_price((x1, y1, w, h))
+            
+            if result and result.get('preview'):
+                # 向前端推流显示截取的图片
+                self.push_status({"ocr_preview": result['preview']})
+                return {"code": 200, "data": {"price": result['price']}}
+            return {"code": 500, "msg": "未识别到内容"}
+        except Exception as e:
+            logger.error(f"OCR 测试异常: {e}", exc_info=True)
+            return {"code": 500, "msg": str(e)}
+
     def get_config(self):
         """返回完整配置（ui_coords + delays + today_bullets + scheduled_time）"""
         try:
